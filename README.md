@@ -3,7 +3,7 @@
 ## Hardware
 5 x Raspberry Pi 4 Model B Rev 1.1  
 3.8 Gig Ram  
-2 Gig Swap <br />
+2 Gig Swap  
 1TB SSD  
 TP-Link GIgabit Switch  
 
