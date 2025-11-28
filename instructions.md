@@ -95,7 +95,7 @@ To turn the head-node into a DHCP-server, start by installing the DHCP server:
 $ sudo apt install isc-dhcp-server
 ```
 Then edit /etc/dhcp/dhcpd.conf as follows:
-```bash
+```conf
 ddns-update-style none;
 authoritative;
 log-facility local7;
@@ -128,13 +128,13 @@ host switch {
 }
 ```
 Edit /etc/default/isc-dhcp-server as follows:
-```bash
+```conf
 INTERFACESv4="eth0"
 DHCPDv4_CONF=/etc/dhcp/dhcpd.conf
 DHCPDv4_PID=/var/run/dhcpd.pid
 ```
 Edit /etc/hosts as follows:
-```bash
+```conf
 127.0.0.1       localhost
 ::1             localhost ip6-localhost ip6-loopback
 ff02::1         ip6-allnodes
@@ -157,7 +157,7 @@ MAC                IP              hostname       valid until         manufactur
 2c:cf:67:64:7c:cf  192.168.50.23   pi2            2025-11-27 14:02:34 -NA-  
 2c:cf:67:64:7d:03  192.168.50.22   pi4            2025-11-27 14:00:35 -NA-  
 ```
-FIX ABOVE OUTPUT
+FIX alla behöver vara med
 #### Add the external SSD
 Network booting requires a bit more space. Begin by formatting and creating an ext4 partition on the SSD. To do this, use gparted or run the following commands:
 ```bash
@@ -181,8 +181,8 @@ $ sudo mkdir /mnt/usb
 $ sudo mount /dev/sda1 /mnt/usb
 $ sudo systemctl daemon-reload
 ```
-Edit /etc/fstab so that it is automatically mounted on boot if the manual mount worked.
-```bash
+Edit /etc/fstab so that it is automatically mounted on boot if the manual mount worked, by adding this line:
+```conf
 /dev/sda1 /mnt/usb auto defaults,user 0 1
 ```
 #### Make the SSD available to the cluster
@@ -197,7 +197,7 @@ $ sudo chown pi:pi /mnt/usb/scratch
 $ sudo ln -s /mnt/usb/scratch /scratch
 ```
 Edit /etc/exports to list IP addresses which should be able to mount the SSD:
-```bash
+```conf
 /mnt/usb/scratch 192.168.50.0/24(rw,sync)
 ```
 Enable and start the rpcbind and nfs-server services:
@@ -223,7 +223,7 @@ MAC                IP              hostname       valid until         manufactur
 cluster@192.168.0.101:~ $ ssh pi2@192.168.50.23
 pi2@192.168.50.23:~ $ sudo raspi-config
 ```
-FIX ABOVE TO USE pi1  
+FIX använd pi1  
 Choose Advanced Options > Boot Order > Network Boot, then reboot.  
 Once it has rebooted, check that BOOT_ORDER is 0xf21 which means it will boot from SD first, followed by network boot. Then, take note of the ethernet MAC address and serial number of the raspberry pi:
 ```bash
@@ -234,3 +234,302 @@ bd86fa18
 ```
 Shut down the board and remove the SD card.
 #### Set up head node as boot server
+Install TFTP server and create a mount point for it to enable the head node to act as a boot server:
+```bash
+$ sudo apt install tftpd-hpa
+$ sudo apt install kpartx
+$ sudo mkdir /mnt/usb/tftpboot
+$ sudo chown tftp:tftp /mnt/usb/tftpboot
+```
+Edit /etc/default/tftpd-hpa as follows:
+```conf
+# /etc/default/tftpd-hpa
+
+TFTP_USERNAME="tftp"
+TFTP_DIRECTORY="/mnt/usb/tftpboot"
+TFTP_ADDRESS=":69"
+TFTP_OPTIONS="--secure --create"
+```
+Restart the service:
+```bash
+$ sudo systemctl restart tftpd-hpa
+```
+One boot image is needed for each compute node. The following commands prepare the image to be used by the first compute node:
+```bash
+$ sudo su
+$ mkdir /tmp/image
+$ cd /tmp/image
+$ wget -O raspios_lite_latest.img.xz https://downloads.raspberrypi.com/raspios_lite_arm64_latest
+$ xz -d raspios_lite_latest.img.xz # Check below on error!
+$ kpartx -a -v *.img
+$ mkdir bootmnt
+$ mkdir rootmnt
+$ mount /dev/mapper/loop0p1 bootmnt/ # Check below before running!
+$ mount /dev/mapper/loop0p2 rootmnt/
+$ mkdir -p /mnt/usb/pi1
+$ mkdir -p /mnt/usb/tftpboot/SN # SN is the serial number of the node 
+$ cp -a rootmnt/* /mnt/usb/pi1
+$ cp -a bootmnt/* /mnt/usb/pi1/boot/firmware
+```
+If the xz command fails, it could be due to the tmp folder being too small, run the following command:
+```bash
+$ sudo mount -o remount,size=3G /tmp
+```
+If /dev/mapper/loopxx does not exist, run:
+```bash
+$ sudo kpartx -av raspios_lite_latest.img.xz
+```
+Now we can customise the root file system:
+```bash
+$ touch /mnt/usb/pi1/boot/firmware/ssh
+$ echo pi:$(echo 'raspberry' | openssl passwd -6 -stdin) > /mnt/usb/pi1/boot/firmware/userconf.txt
+$ sed -i /UUID/d /mnt/usb/pi1/etc/fstab
+$ echo "192.168.50.1:/mnt/usb/tftpboot/6a5ef8b0 /boot/firmware nfs defaults,vers=3 0 0" >> /mnt/usb/pi1/etc/fstab
+$ echo "console=serial0,115200 console=tty root=/dev/nfs nfsroot=192.168.50.1:/mnt/usb/pi1,vers=3 rw ip=dhcp rootwait" > /mnt/usb/pi1/boot/firmware/cmdline.txt
+```
+Add it to /etc/exports on the head node:
+```bash
+$ echo "/mnt/usb/pi1 192.168.50.0/24(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+```
+Cleanup:
+```bash
+$ systemctl restart rpcbind
+$ systemctl restart nfs-server
+$ umount bootmnt/
+$ umount rootmnt/
+$ cd /tmp; rm -rf image
+$ exit
+```
+Finally, edit /etc/dhcp/dhcpd.conf as follows:
+```conf
+ddns-update-style none;
+authoritative;
+log-facility local7;
+option option-43 code 43 = text;
+option option-66 code 66 = text;
+
+# No service will be given on this subnet
+subnet 10.3.31.0 netmask 255.255.255.0 {
+}
+
+# The internal cluster network
+group {
+   option broadcast-address 192.168.50.255;
+   option routers 192.168.50.1;
+   default-lease-time 600;
+   max-lease-time 7200;
+   option domain-name "cluster";
+   option domain-name-servers 8.8.8.8, 8.8.4.4;
+   subnet 192.168.50.0 netmask 255.255.255.0 {
+      range 192.168.50.20 192.168.50.250;
+
+      # Head Node
+      host cluster {
+         hardware ethernet dc:a6:32:18:75:aa;
+         fixed-address 192.168.50.1;
+      }
+
+      # NETGEAR Switch
+      host switch {
+         hardware ethernet c8:78:7d:b3:bf:90;
+         fixed-address 192.168.50.254;
+      }
+
+      host pi1 {
+         option root-path "/mnt/usb/tftpboot/";
+         hardware ethernet dc:a6:32:36:68:61;
+         option option-43 "Raspberry Pi Boot";
+         option option-66 "192.168.50.1";
+         next-server 192.168.50.1;
+         fixed-address 192.168.50.11;
+         option host-name "pi1";
+      }
+
+   }
+}
+```
+Finish by rebooting
+```bash
+$ sudo reboot
+```
+#### Network boot the node
+If the compute node reboots correctly, it should come back up and be accesible on ssh:
+```bash
+$ ssh pi@192.168.50.11
+```
+To prevent the raspberry pi from trying to resize its filesystem on the first boot and also uninstall the swap daemon, run the following commands:
+```bash
+$ sudo systemctl disable resize2fs_once.service
+$ sudo systemctl disable sshswitch.service
+$ sudo apt remove dphys-swapfile
+```
+Now change the hostname by running:
+```bash
+$ sudo raspi-config
+```
+and going to System Options > Hostname. Then select Yes to reboot.  
+Finally, edit /etc/hosts to allow usage of hostname instead of ip every time:
+```conf
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+
+127.0.1.1       cluster
+
+192.168.50.1    cluster
+192.168.50.254  switch
+
+192.168.50.11   pi1
+192.168.50.12   pi2
+192.168.50.13   pi3
+192.168.50.14   pi4
+```
+And reboot.
+#### Mount the scratch disk
+Begin by creating a mount point for the scratch disk:
+```bash
+$ sudo mkdir /scratch
+$ sudo chown pi:pi scratch
+```
+Add the following line to /etc/fstab:
+```conf
+192.168.50.1:/mnt/usb/scratch /scratch nfs defaults 0 0
+```
+Then reboot.
+
+#### Secure shell without a password
+
+
+#### 
+
+
+
+
+#### LAN & Internet access
+Uncomment the following line in /etc/sysctl.conf:
+```conf
+net.ipv4.ip_forward=1
+```
+Then configure the iptables:
+```bash
+$ sudo apt install iptables
+$ sudo iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE
+$ sudo iptables -A FORWARD -i eth1 -o eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+$ sudo iptables -A FORWARD -i eth0 -o eth1 -j ACCEPT
+$ sudo sh -c "iptables-save > /etc/iptables.ipv4.nat"
+```
+and then add the following line, just above the exit 0 line, in the /etc/rc.local file to load the tables on boot:
+```conf
+_IP=$(hostname -I) || true
+if
+[ "$_IP" ]; then
+  printf "My IP address is %s\n" "$_IP"
+fi
+
+iptables-restore < /etc/iptables.ipv4.nat
+
+exit 0
+```
+Then reboot.
+
+Try to ping a DNS provider to ensure the internet connection is working:
+```bash
+$ ping 1.1.1.1
+```
+If the nodes don't have internet access, the following file may need to be made executable:
+```bash
+$ sudo chmod +x /etc/rc.local
+```
+Also, ensure that the NAT table contains masquerade by running the following command:
+```bash
+$ sudo iptables -t nat -L -n -v
+```
+Then reboot and try again.
+
+#### Add the next compute node
+To enable network boot for the next board, list the pis using `dhcp-lease-list` again, remove the known_hosts file, connectto the compute node and enter raspi-config to enable network boot as previously. Then reboot it:
+```bash
+$ rm /home/pi/.ssh/known_hosts
+$ ssh <username>@129.168.50.21
+$ sudo raspi-config
+$ sudo reboot
+```
+Check that the BOOT_ORDER is 0xf21 by running vcgencmd:
+```bash
+$ vcgencmd bootloader_config
+BOOT_UART=0
+WAKE_ON_GPIO=1
+POWER_OFF_ON_HALT=0
+
+
+[all]
+BOOT_ORDER=0xf21
+$
+```
+Take note of the ethernet MAC address and serial number of the raspberry pi:
+```bash
+pi@pi1:~ $ ethtool -P eth0
+Permanent address: dc:a6:32:36:68:61
+pi@pi1:~ $ grep Serial /proc/cpuinfo | cut -d ' ' -f 2 | cut -c 9-16
+5644be38
+```
+Then shut the board down and remove the SD card.
+On the head node, the already configured image can be used again:
+```bash
+$ sudo su
+$ mkdir -p /mnt/usb/pi2
+$ cp -a /mnt/usb/pi1/* /mnt/usb/pi2
+$ mkdir -p /mnt/usb/tftpboot/54e91338
+$ echo "/mnt/usb/pi2/boot/firmware /mnt/usb/tftpboot/54e91338 none defaults,bind 0 0" >> /etc/fstab
+$ echo "/mnt/usb/pi2 192.168.50.0/24(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+$ exit
+$
+```
+Then edit /mnt/usb/pi2/boot/firmware/cmdline.txt, and replace pi1 with pi2:
+```bash
+console=serial0,115200 console=tty root=/dev/nfs nfsroot=192.168.50.1:/mnt/usb/rp2,vers=3 rw ip=dhcp rootwait
+```
+and similarly for /mnt/usb/rpi2/etc/hostname:
+```bash
+rpi2
+```
+Then edit the /etc/dhcp/dhcpd.conf file:
+```bash
+host pi1 {
+         option root-path "/mnt/usb/tftpboot/";
+         hardware ethernet dc:a6:32:36:68:61;
+         option option-43 "Raspberry Pi Boot";
+         option option-66 "192.168.50.1";
+         next-server 192.168.50.1;
+         fixed-address 192.168.50.12;
+         option host-name "pi2";
+      }
+```
+Then reboot.  
+Both should now be up and running, run the following commands to scan with nmap:
+```bash
+$ sudo apt install nmap
+$ nmap 192.168.50.0/24
+FIX lägg till output
+```
+#### Add the rest of the nodes
+Repeat the above steps for the remaining compute nodes, substituting the appropriate MAC address, serial number, and hostname for each of them.
+
+#### Simultaneous control
+pssh allows simultaneous control of the cluster nodes and also installs multiple command-line tools. Install it with the following command:
+```bash
+$ apt install pssh
+```
+Create a host file listing all compute nodes in the home directory:
+```bash
+$ cat .pssh_hosts
+pi1
+pi2
+pi3
+pi4
+```
+Test it with the following command:
+```bash
+$ parallel-ssh -i -h .pssh_hosts free -h
+```
