@@ -207,8 +207,11 @@ $ sudo systemctl start rpcbind.service
 $ sudo systemctl enable nfs-server.service
 $ sudo systemctl start nfs-server.service
 ```
-Reboot
-
+Reboot  
+Then, on the compute nodes once network boot has been set up, install nfs-common:
+```bash
+sudo apt install nfs-common
+```
 #### Add the first compute node
 To network boot our compute nodes, the boot order must first be changed which requires them to boot from the SD card first. SSH into one of them
 ```bash
