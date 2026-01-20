@@ -3,13 +3,21 @@ import sys
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
+from datetime import timedelta
+import json
 
 os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
 rank = int(sys.argv[1])
 world_size = 5
+#timeout = timedelta(minutes=1) # Borde gå sätta i FileStore, testa om problem med connection.
 
-dist.init_process_group(backend='gloo', rank=rank, world_size=world_size,
-                        store=dist.FileStore("/scratch/temp/svm_shared_file", world_size=world_size))
+print(f"Rank {rank}: Trying to connect")
+
+dist.init_process_group(backend='gloo', rank=rank, world_size=world_size, 
+store=dist.FileStore("/scratch/temp/svm_shared_file", world_size=world_size))
+
+print(f"Rank {rank}: Connected")
+
 
 def load(path, offset):
     with open(path, 'rb') as f:
@@ -41,5 +49,8 @@ if rank == 0:
         acc = (model(Xt).argmax(dim=1) == Yt).float().mean() * 100
 
     print(f"Accuracy: {acc:.2f}%")
+    log = {"accuracy": float(acc)}
+    with open("/scratch/temp/accuracy.log", "w") as f:
+        f.write(json.dumps(log))
 
 dist.destroy_process_group()
