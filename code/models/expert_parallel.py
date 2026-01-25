@@ -136,7 +136,7 @@ if rank == 0:
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
     
-    torch.save(gate_model.state_dict(), "/scratch/temp/expert_gate_parallel_model.pt")
+    torch.save(gate_model.state_dict(), "/scratch/temp/expert_parallel_gate_model.pt")
     
     with open("/scratch/temp/expert_parallel.log", "w") as f:
         f.write(json.dumps(log))
