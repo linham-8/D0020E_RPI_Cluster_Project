@@ -150,7 +150,7 @@ else:
             if rank > 1:
                 dist.send(input_data.grad, dst=rank-1)
 
-    torch.save(model.state_dict(), f"/scratch/temp/pipeline_parallel_model_rank{rank}.pt")
+    torch.save(model.state_dict(), f"/scratch/temp/pipeline_parallel_rank{rank}_model.pt")
 
     dist.broadcast(mode_signal, src=0)
     if mode_signal.item() == 2:

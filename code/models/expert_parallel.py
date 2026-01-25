@@ -176,7 +176,7 @@ else:
                 output.backward(grad_in)
                 opt.step()
     
-    torch.save(model.state_dict(), f"/scratch/temp/expert_parallel_model_rank{rank}.pt")
+    torch.save(model.state_dict(), f"/scratch/temp/expert_parallel_rank{rank}_model.pt")
 
     dist.broadcast(mode_signal, src=0)
     if mode_signal.item() == 2:
