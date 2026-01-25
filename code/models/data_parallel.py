@@ -3,18 +3,16 @@ import sys
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-from datetime import timedelta
 import json
 
 os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
 rank = int(sys.argv[1])
 world_size = 5
-#timeout = timedelta(minutes=1) # Borde gå sätta i FileStore, testa om problem med connection.
 
 print(f"Rank {rank}: Trying to connect")
 
 dist.init_process_group(backend='gloo', rank=rank, world_size=world_size, 
-store=dist.FileStore("/scratch/temp/svm_shared_file", world_size=world_size))
+store=dist.FileStore("/scratch/temp/data_parallel_sync", world_size=world_size))
 
 print(f"Rank {rank}: Connected")
 
@@ -40,7 +38,7 @@ for epoch in range(5):
         opt.step()
 
 if rank == 0:
-    torch.save(model.state_dict(), "/scratch/temp/final_model.pt")
+    torch.save(model.state_dict(), "/scratch/temp/data_parallel_model.pt")
 
     Xt = load('/scratch/mnist_dataset/emnist-digits-test-images-idx3-ubyte', 16).float().reshape(-1, 784) / 255.0
     Yt = load('/scratch/mnist_dataset/emnist-digits-test-labels-idx1-ubyte', 8).long()
@@ -50,7 +48,7 @@ if rank == 0:
 
     print(f"Accuracy: {acc:.2f}%")
     log = {"accuracy": float(acc)}
-    with open("/scratch/temp/accuracy.log", "w") as f:
+    with open("/scratch/temp/data_parallel.log", "w") as f:
         f.write(json.dumps(log))
 
 dist.destroy_process_group()

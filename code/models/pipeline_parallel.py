@@ -3,13 +3,18 @@ import sys
 import torch
 import torch.distributed as dist
 import torch.nn as nn
+import json
 
 os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
 rank = int(sys.argv[1])
 world_size = 5
 
+print(f"Rank {rank}: Trying to connect")
+
 dist.init_process_group(backend='gloo', rank=rank, world_size=world_size,
-                        store=dist.FileStore("/scratch/temp/svm_shared_file", world_size=world_size))
+                        store=dist.FileStore("/scratch/temp/pipeline_parallel_sync", world_size=world_size))
+
+print(f"Rank {rank}: Connected")
 
 def load(path, offset):
     with open(path, 'rb') as f:
@@ -31,7 +36,6 @@ if rank == 0:
             if len(batch_x) < 64: continue
 
             dist.broadcast(torch.tensor([1]), src=0)
-
             dist.send(batch_x, dst=1)
 
             preds = torch.zeros(64, 10)
@@ -43,8 +47,8 @@ if rank == 0:
             dist.send(grad_initial, dst=4)
 
     dist.broadcast(torch.tensor([0]), src=0)
-
     dist.broadcast(torch.tensor([2]), src=0)
+    
     correct = 0
     total = 0
 
@@ -64,7 +68,13 @@ if rank == 0:
             total += 64
 
     dist.broadcast(torch.tensor([0]), src=0)
-    print(f"Accuracy: {(correct/total)*100:.2f}%")
+
+    final_acc = (correct / total) * 100
+    print(f"Accuracy: {final_acc:.2f}%")
+    
+    log = {"accuracy": float(final_acc)}
+    with open("/scratch/temp/pipeline_parallel.log", "w") as f:
+        f.write(json.dumps(log))
 
 else:
     if rank == 1:
@@ -113,6 +123,8 @@ else:
 
             if rank > 1:
                 dist.send(input_data.grad, dst=rank-1)
+
+    torch.save(model.state_dict(), f"/scratch/temp/pipeline_parallel_model_rank{rank}.pt")
 
     dist.broadcast(mode_signal, src=0)
     if mode_signal.item() == 2:

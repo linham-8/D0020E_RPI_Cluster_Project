@@ -3,13 +3,18 @@ import sys
 import torch
 import torch.distributed as dist
 import torch.nn as nn
+import json
 
 os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
 rank = int(sys.argv[1])
 world_size = 5
 
+print(f"Rank {rank}: Trying to connect")
+
 dist.init_process_group(backend='gloo', rank=rank, world_size=world_size,
-                        store=dist.FileStore("/scratch/temp/svm_shared_file", world_size=world_size))
+                        store=dist.FileStore("/scratch/temp/expert_parallel_sync", world_size=world_size))
+
+print(f"Rank {rank}: Connected")
 
 def load(path, offset):
     with open(path, 'rb') as f:
@@ -102,7 +107,15 @@ if rank == 0:
             total += 64
 
     dist.broadcast(torch.tensor([0]), src=0)
-    print(f"Accuracy: {(correct/total)*100:.2f}%")
+    
+    final_acc = (correct/total)*100
+    print(f"Accuracy: {final_acc:.2f}%")
+    
+    torch.save(gate_model.state_dict(), "/scratch/temp/expert_gate_parallel_model.pt")
+    
+    log = {"accuracy": float(final_acc)}
+    with open("/scratch/temp/expert_parallel.log", "w") as f:
+        f.write(json.dumps(log))
 
 else:
     model = nn.Sequential(nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10))
@@ -136,6 +149,8 @@ else:
                 
                 output.backward(grad_in)
                 opt.step()
+    
+    torch.save(model.state_dict(), f"/scratch/temp/expert_parallel_model_rank{rank}.pt")
 
     dist.broadcast(mode_signal, src=0)
     if mode_signal.item() == 2:
