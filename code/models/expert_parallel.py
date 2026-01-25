@@ -4,6 +4,7 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 import json
+import time
 
 os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
 rank = int(sys.argv[1])
@@ -29,6 +30,9 @@ if rank == 0:
 
     gate_model = nn.Linear(784, 4)
     gate_opt = torch.optim.SGD(gate_model.parameters(), lr=0.01)
+
+    dist.barrier()
+    start_time = time.time()
 
     dist.broadcast(torch.tensor([1]), src=0)
 
@@ -74,6 +78,8 @@ if rank == 0:
             gate_opt.step()
 
     dist.broadcast(torch.tensor([0]), src=0)
+    end_time = time.time()
+
     dist.broadcast(torch.tensor([2]), src=0)
     
     correct = 0
@@ -111,15 +117,35 @@ if rank == 0:
     final_acc = (correct/total)*100
     print(f"Accuracy: {final_acc:.2f}%")
     
+    training_time = end_time - start_time
+    print(f"Total Training Time: {training_time:.2f}s")
+
+    total_images_processed = len(X) * 5
+    throughput = total_images_processed / training_time
+    total_batches = (len(X) / 64) * 5
+    avg_batch_latency = training_time / total_batches
+
+    log = {
+        "model_type": "expert_parallel",
+        "accuracy": float(final_acc),
+        "execution_time": round(training_time, 2),
+        "throughput": round(throughput, 2),
+        "latency_per_batch": round(avg_batch_latency, 4),
+        "world_size": world_size,
+        "epochs": 5,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
     torch.save(gate_model.state_dict(), "/scratch/temp/expert_gate_parallel_model.pt")
     
-    log = {"accuracy": float(final_acc)}
     with open("/scratch/temp/expert_parallel.log", "w") as f:
         f.write(json.dumps(log))
 
 else:
     model = nn.Sequential(nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10))
     opt = torch.optim.SGD(model.parameters(), lr=0.01)
+
+    dist.barrier()
 
     mode_signal = torch.tensor([0])
     dist.broadcast(mode_signal, src=0)
