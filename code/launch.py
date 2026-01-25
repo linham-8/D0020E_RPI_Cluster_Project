@@ -41,6 +41,6 @@ def start_cluster(model_selected, model_path):
     print(f"Finished.")
 
 if __name__ == "__main__":
-    model_key = sys.argv[1]
-    final_path = os.path.join(path, models[model_key])
-    start_cluster(model_key, final_path)
+    model_selected = sys.argv[1]
+    final_path = os.path.join(path, models[model_selected])
+    start_cluster(model_selected, final_path)
