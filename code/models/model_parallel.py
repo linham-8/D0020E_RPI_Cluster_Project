@@ -92,18 +92,17 @@ if rank == 0:
         throughput = total_images_processed / training_time
         total_batches = (len(X) / 64) * 5
         avg_batch_latency = training_time / total_batches
-        execution_time = training_time
     else:
         throughput = len(Xt) / test_time
         avg_batch_latency = test_time / (len(Xt) / 64)
-        execution_time = test_time
 
     log = {
         "model_type": "model_parallel",
         "accuracy": float(final_acc),
-        "execution_time": round(execution_time, 2),
+        "training_time": round(training_time, 2),
+        "test_time": round(test_time, 2),
         "throughput": round(throughput, 2),
-        "latency_per_batch": round(avg_batch_latency, 4),
+        "latency_per_batch": round(avg_batch_latency, 2),
         "world_size": world_size,
         "epochs": 5 if use_saved != "yes" else 0,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")

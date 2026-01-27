@@ -38,20 +38,22 @@ def index():
     model = None
     parallelism = None
     accuracy = None
-    execution_time = None
+    training_time = None
+    test_time = None
     throughput = None
     latency_per_batch = None
     world_size = None
     epochs = None
     timestamp = "N/A"
     has_data = False
-
+    
     try:
         with open("/scratch/temp/data_parallel.log", "r") as f:
             data = json.load(f)
             parallelism = data.get("model_type", "N/A")
             accuracy = data.get("accuracy", "N/A")
-            execution_time = data.get("execution_time", "N/A")
+            training_time = data.get("training_time", "N/A")
+            test_time = data.get("test_time", "N/A")
             throughput = data.get("throughput", "N/A")
             latency_per_batch = data.get("latency_per_batch", "N/A")
             world_size = data.get("world_size", "N/A")
@@ -65,7 +67,8 @@ def index():
     model=model,
     parallelism=parallelism,
     accuracy=accuracy,
-    execution_time=execution_time,
+    training_time=training_time,
+    test_time=test_time,
     throughput=throughput,
     latency_per_batch=latency_per_batch,
     world_size=world_size,
@@ -80,4 +83,4 @@ def api_status():
     return json.dumps({'status': status})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000) # Använd (, Debug=True) om hotloading.
+    app.run(host='0.0.0.0', port=5000, debug=True)
