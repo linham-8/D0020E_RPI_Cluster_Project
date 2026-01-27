@@ -8,6 +8,7 @@ import time
 
 os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
 rank = int(sys.argv[1])
+use_saved = sys.argv[2] if len(sys.argv) > 2 else "no"
 world_size = 5
 
 print(f"Rank {rank}: Trying to connect")
@@ -31,32 +32,37 @@ if rank == 0:
     dist.barrier()
     start_time = time.time()
 
-    dist.broadcast(torch.tensor([1]), src=0)
+    if use_saved != "yes":
+        dist.broadcast(torch.tensor([1]), src=0)
 
-    for epoch in range(5):
-        for i in range(0, len(X), 64):
-            batch_x = X[i:i+64]
-            batch_y = Y[i:i+64]
-            if len(batch_x) < 64: continue
+        for epoch in range(5):
+            for i in range(0, len(X), 64):
+                batch_x = X[i:i+64]
+                batch_y = Y[i:i+64]
+                if len(batch_x) < 64: continue
 
-            dist.broadcast(torch.tensor([1]), src=0)
-            dist.send(batch_x, dst=1)
+                dist.broadcast(torch.tensor([1]), src=0)
+                dist.send(batch_x, dst=1)
 
-            preds = torch.zeros(64, 10)
-            dist.recv(preds, src=4)
-            preds.requires_grad = True
-            loss = nn.CrossEntropyLoss()(preds, batch_y)
+                preds = torch.zeros(64, 10)
+                dist.recv(preds, src=4)
+                preds.requires_grad = True
+                loss = nn.CrossEntropyLoss()(preds, batch_y)
 
-            grad_initial = torch.autograd.grad(loss, preds)[0]
-            dist.send(grad_initial, dst=4)
+                grad_initial = torch.autograd.grad(loss, preds)[0]
+                dist.send(grad_initial, dst=4)
 
-    dist.broadcast(torch.tensor([0]), src=0)
+        dist.broadcast(torch.tensor([0]), src=0)
+    else:
+        dist.broadcast(torch.tensor([0]), src=0)
+
     end_time = time.time()
 
     dist.broadcast(torch.tensor([2]), src=0)
     
     correct = 0
     total = 0
+    test_start = time.time()
 
     with torch.no_grad():
         for i in range(0, len(Xt), 64):
@@ -73,6 +79,7 @@ if rank == 0:
             correct += acc
             total += 64
 
+    test_time = time.time() - test_start
     dist.broadcast(torch.tensor([0]), src=0)
     
     final_acc = (correct / total) * 100
@@ -81,19 +88,25 @@ if rank == 0:
     training_time = end_time - start_time
     print(f"Total Training Time: {training_time:.2f}s")
 
-    total_images_processed = len(X) * 5
-    throughput = total_images_processed / training_time
-    total_batches = (len(X) / 64) * 5
-    avg_batch_latency = training_time / total_batches
+    if use_saved != "yes":
+        total_images_processed = len(X) * 5
+        throughput = total_images_processed / training_time
+        total_batches = (len(X) / 64) * 5
+        avg_batch_latency = training_time / total_batches
+        execution_time = training_time
+    else:
+        throughput = len(Xt) / test_time
+        avg_batch_latency = test_time / (len(Xt) / 64)
+        execution_time = test_time
     
     log = {
         "model_type": "pipeline_parallel",
         "accuracy": float(final_acc),
-        "execution_time": round(training_time, 2),
+        "execution_time": round(execution_time, 2),
         "throughput": round(throughput, 2),
         "latency_per_batch": round(avg_batch_latency, 4),
         "world_size": world_size,
-        "epochs": 5,
+        "epochs": 5 if use_saved != "yes" else 0,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
 
@@ -109,6 +122,9 @@ else:
         model = nn.Sequential(nn.Linear(128, 128), nn.ReLU())
 
     opt = torch.optim.SGD(model.parameters(), lr=0.01)
+
+    if use_saved == "yes":
+            model.load_state_dict(torch.load(f"/scratch/temp/pipeline_parallel_rank{rank}_model.pt"))
 
     dist.barrier()
 
@@ -150,7 +166,7 @@ else:
             if rank > 1:
                 dist.send(input_data.grad, dst=rank-1)
 
-    torch.save(model.state_dict(), f"/scratch/temp/pipeline_parallel_rank{rank}_model.pt")
+        torch.save(model.state_dict(), f"/scratch/temp/pipeline_parallel_rank{rank}_model.pt")
 
     dist.broadcast(mode_signal, src=0)
     if mode_signal.item() == 2:

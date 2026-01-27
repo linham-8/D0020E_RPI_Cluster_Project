@@ -44,7 +44,7 @@
                             <select name="saved" id="saved" required>
                                 <option value="">-- Choose --</option>
                                 <option value="yes">Yes</option>
-                            </select>
+                                <option value="no">No</option> </select>
                         </div>
                     </div>
 
@@ -64,35 +64,33 @@
 
                 {% if has_data %}
                 <div class="metric-card">
-                    <div class="metric-card">
-                        <div class="metric">
-                            <span class="title">Accuracy:</span>
-                            <span class="value">{{ accuracy }}%</span>
-                        </div>
-                        <div class="metric">
-                            <span class="title">Execution time:</span>
-                            <span class="value">{{ execution_time }}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="title">Throughput:</span>
-                            <span class="value">{{ throughput }}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="title">Latency per batch:</span>
-                            <span class="value">{{ latency_per_batch }}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="title">World size:</span>
-                            <span class="value">{{ world_size }}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="title">Epochs:</span>
-                            <span class="value">{{ epochs }}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="title">Timestamp:</span>
-                            <span class="value">{{ timestamp }}</span>
-                        </div>
+                    <div class="metric">
+                        <span class="title">Accuracy:</span>
+                        <span class="value">{{ accuracy }}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Execution time:</span>
+                        <span class="value">{{ execution_time }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Throughput:</span>
+                        <span class="value">{{ throughput }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Latency per batch:</span>
+                        <span class="value">{{ latency_per_batch }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">World size:</span>
+                        <span class="value">{{ world_size }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Epochs:</span>
+                        <span class="value">{{ epochs }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Timestamp:</span>
+                        <span class="value">{{ timestamp }}</span>
                     </div>
                 </div>
                 {% else %}
@@ -106,14 +104,11 @@
 
         <section class="history-section">
             <h2>Test history</h2>
-
             <div class="results-display">
-
                 <div class="waiting-card">
                     <div class="spinner"></div>
                     <p>Waiting for history log file...</p>
                 </div>
-
             </div>
         </section>
 

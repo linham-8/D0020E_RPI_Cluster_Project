@@ -8,6 +8,7 @@ import time
 
 os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
 rank = int(sys.argv[1])
+use_saved = sys.argv[2] if len(sys.argv) > 2 else "no"
 world_size = 5
 
 print(f"Rank {rank}: Trying to connect")
@@ -31,59 +32,69 @@ if rank == 0:
     gate_model = nn.Linear(784, 4)
     gate_opt = torch.optim.SGD(gate_model.parameters(), lr=0.01)
 
+    if use_saved == "yes":
+            gate_model.load_state_dict(torch.load("/scratch/temp/expert_parallel_gate_model.pt"))
+
+
     dist.barrier()
     start_time = time.time()
 
-    dist.broadcast(torch.tensor([1]), src=0)
+    if use_saved != "yes":
+        dist.broadcast(torch.tensor([1]), src=0)
 
-    for epoch in range(5):
-        perm = torch.randperm(len(X))
-        X_shuff = X[perm]
-        Y_shuff = Y[perm]
+        for epoch in range(5):
+            perm = torch.randperm(len(X))
+            X_shuff = X[perm]
+            Y_shuff = Y[perm]
 
-        for i in range(0, len(X), 64):
-            batch_x = X_shuff[i:i+64]
-            batch_y = Y_shuff[i:i+64]
-            if len(batch_x) < 64: continue
+            for i in range(0, len(X), 64):
+                batch_x = X_shuff[i:i+64]
+                batch_y = Y_shuff[i:i+64]
+                if len(batch_x) < 64: continue
 
-            dist.broadcast(torch.tensor([1]), src=0)
-            
-            with torch.no_grad():
-                gate_scores = gate_model(batch_x)
-                expert_assignments = torch.argmax(gate_scores, dim=1) + 1
-
-            expert_losses = []
-            for r in range(1, 5):
-                mask = (expert_assignments == r)
-                sub_x = batch_x[mask]
-                sub_y = batch_y[mask]
+                dist.broadcast(torch.tensor([1]), src=0)
                 
-                count = torch.tensor([len(sub_x)])
-                dist.send(count, dst=r)
-                
-                if len(sub_x) > 0:
-                    dist.send(sub_x, dst=r)
-                    pred_buffer = torch.zeros(len(sub_x), 10)
-                    dist.recv(pred_buffer, src=r)
+                with torch.no_grad():
+                    gate_scores = gate_model(batch_x)
+                    expert_assignments = torch.argmax(gate_scores, dim=1) + 1
+
+                expert_losses = []
+                for r in range(1, 5):
+                    mask = (expert_assignments == r)
+                    sub_x = batch_x[mask]
+                    sub_y = batch_y[mask]
                     
-                    pred_buffer.requires_grad = True
-                    loss = nn.CrossEntropyLoss()(pred_buffer, sub_y)
-                    loss.backward()
-                    expert_losses.append(loss.item())
-                    dist.send(pred_buffer.grad, dst=r)
+                    count = torch.tensor([len(sub_x)])
+                    dist.send(count, dst=r)
+                    
+                    if len(sub_x) > 0:
+                        dist.send(sub_x, dst=r)
+                        pred_buffer = torch.zeros(len(sub_x), 10)
+                        dist.recv(pred_buffer, src=r)
+                        
+                        pred_buffer.requires_grad = True
+                        loss = nn.CrossEntropyLoss()(pred_buffer, sub_y)
+                        loss.backward()
+                        expert_losses.append(loss.item())
+                        dist.send(pred_buffer.grad, dst=r)
 
-            gate_opt.zero_grad()
-            gate_loss = torch.tensor(expert_losses).sum()
-            gate_loss.requires_grad = True
-            gate_opt.step()
+                gate_opt.zero_grad()
+                gate_loss = torch.tensor(expert_losses).sum()
+                gate_loss.requires_grad = True
+                gate_opt.step()
 
-    dist.broadcast(torch.tensor([0]), src=0)
+        dist.broadcast(torch.tensor([0]), src=0)
+    else:
+        dist.broadcast(torch.tensor([0]), src=0)
+
     end_time = time.time()
 
     dist.broadcast(torch.tensor([2]), src=0)
     
     correct = 0
     total = 0
+    test_start = time.time()
+
     with torch.no_grad():
         for i in range(0, len(Xt), 64):
             batch_xt = Xt[i:i+64]
@@ -112,6 +123,7 @@ if rank == 0:
             correct += acc
             total += 64
 
+    test_time = time.time() - test_start
     dist.broadcast(torch.tensor([0]), src=0)
     
     final_acc = (correct/total)*100
@@ -120,23 +132,30 @@ if rank == 0:
     training_time = end_time - start_time
     print(f"Total Training Time: {training_time:.2f}s")
 
-    total_images_processed = len(X) * 5
-    throughput = total_images_processed / training_time
-    total_batches = (len(X) / 64) * 5
-    avg_batch_latency = training_time / total_batches
+    if use_saved != "yes":
+        total_images_processed = len(X) * 5
+        throughput = total_images_processed / training_time
+        total_batches = (len(X) / 64) * 5
+        avg_batch_latency = training_time / total_batches
+        execution_time = training_time
+    else:
+        throughput = len(Xt) / test_time
+        avg_batch_latency = test_time / (len(Xt) / 64)
+        execution_time = test_time
 
     log = {
         "model_type": "expert_parallel",
         "accuracy": float(final_acc),
-        "execution_time": round(training_time, 2),
+        "execution_time": round(execution_time, 2),
         "throughput": round(throughput, 2),
         "latency_per_batch": round(avg_batch_latency, 4),
         "world_size": world_size,
-        "epochs": 5,
+        "epochs": 5 if use_saved != "yes" else 0,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
     
-    torch.save(gate_model.state_dict(), "/scratch/temp/expert_parallel_gate_model.pt")
+    if use_saved != "yes":
+        torch.save(gate_model.state_dict(), "/scratch/temp/expert_parallel_gate_model.pt")
     
     with open("/scratch/temp/expert_parallel.log", "w") as f:
         f.write(json.dumps(log))
@@ -144,6 +163,9 @@ if rank == 0:
 else:
     model = nn.Sequential(nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10))
     opt = torch.optim.SGD(model.parameters(), lr=0.01)
+
+    if use_saved == "yes":
+            model.load_state_dict(torch.load(f"/scratch/temp/expert_parallel_rank{rank}_model.pt"))
 
     dist.barrier()
 
@@ -176,7 +198,7 @@ else:
                 output.backward(grad_in)
                 opt.step()
     
-    torch.save(model.state_dict(), f"/scratch/temp/expert_parallel_rank{rank}_model.pt")
+        torch.save(model.state_dict(), f"/scratch/temp/expert_parallel_rank{rank}_model.pt")
 
     dist.broadcast(mode_signal, src=0)
     if mode_signal.item() == 2:

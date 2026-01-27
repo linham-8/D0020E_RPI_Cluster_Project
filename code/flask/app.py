@@ -6,6 +6,10 @@ import signal
 
 app = Flask(__name__)
 active_tasks = {}
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+code_dir = os.path.dirname(base_dir)
+launch_script = os.path.join(code_dir, "launch.py")
     
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -14,15 +18,15 @@ def index():
         if action == 'start': 
             model = request.form['model']
             parallelism = request.form['parallelism']
-            pid = active_tasks.get('training')
-
-            print(f"Starting with parallelism type: {parallelism}")
-            proc = subprocess.Popen(["python", "/scratch/D0020E_RPI_Cluster_Project/code/launch.py", parallelism])
+            saved = request.form['saved']
+            
+            proc = subprocess.Popen(["python", launch_script, parallelism, saved])
 
             active_tasks['training'] = proc.pid
             return redirect(url_for('index', model=model, parallelism=parallelism))
             
         elif action == 'stop':
+            pid = active_tasks.get('training')
             if pid:
                 try:
                     os.killpg(os.getpgid(pid), signal.SIGTERM)
