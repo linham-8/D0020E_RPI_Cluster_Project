@@ -1,7 +1,6 @@
 import subprocess
 import sys
 import os
-import time
 
 compute_nodes = ["pi1", "pi2", "pi3", "pi4"]
 
@@ -18,20 +17,18 @@ models = {
     "model_parallel": "model_parallel.py"
 }
 
-def start_cluster(model_selected, model_path, saved_choice):
-    model_filename = models[model_selected]
+def start_cluster(selected_model, model_path, saved_choice):
+    model_filename = models[selected_model]
     processes = []
-    
-    clean_cmd = f"rm -f {temp_dir}/{model_selected}_sync {temp_dir}/{model_selected}.log"
-    subprocess.run(clean_cmd, shell=True)
+
+    subprocess.run(f"rm -f {temp_dir}/{selected_model}_sync", shell=True)
+    subprocess.run(f"rm -f {temp_dir}/{selected_model}.log", shell=True)
 
     subprocess.run(f"pkill -f {model_filename}", shell=True)
     for node in compute_nodes:
         subprocess.run(f"ssh {node} 'pkill -f {model_filename}'", shell=True)
     
-    time.sleep(1)
-
-    print(f"Starting Head Node for {model_selected} (Saved: {saved_choice})")
+    print(f"Starting Head Node for {selected_model} (Saved: {saved_choice})")
     process_0 = subprocess.Popen(["python", "-u", model_path, "0", saved_choice])
     processes.append(process_0)
 
@@ -47,9 +44,9 @@ def start_cluster(model_selected, model_path, saved_choice):
 
 if __name__ == "__main__":
       
-    model_selected = sys.argv[1]
-    saved_choice = sys.argv[2]
+    selected_model = sys.argv[1]
+    saved_choice = sys.argv[2] if len(sys.argv) > 2 else "no"
     
-    if model_selected in models:
-        final_path = os.path.join(models_dir, models[model_selected])
-        start_cluster(model_selected, final_path, saved_choice)
+    if selected_model in models:
+        final_path = os.path.join(models_dir, models[selected_model])
+        start_cluster(selected_model, final_path, saved_choice)
