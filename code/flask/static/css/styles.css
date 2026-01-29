@@ -135,6 +135,21 @@ button {
     color: #0b6620;
 }
 
+/* Tables */
+table {
+    width: 100%;
+    border: 1px solid white;
+    margin-top: 10px;
+}
+
+th,
+td {
+    padding: 8px;
+    text-align: left;
+    border: 1px solid white;
+    border-bottom: 1px solid white;
+}
+
 /* Simple Spinner */
 
 .waiting-card {

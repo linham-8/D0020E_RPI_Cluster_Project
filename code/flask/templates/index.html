@@ -44,7 +44,8 @@
                             <select name="saved" id="saved" required>
                                 <option value="">-- Choose --</option>
                                 <option value="yes">Yes</option>
-                                <option value="no">No</option> </select>
+                                <option value="no">No</option>
+                            </select>
                         </div>
                     </div>
 
@@ -59,7 +60,7 @@
                 <h2>Test Results</h2>
                 <div class="meta">
                     Model: <span>{{ model or 'SVM' }}</span> |
-                    Parallelism Type: <span>{{ parallelism or 'N/A' }}</span>
+                    Parallelism Type: <span>{{ parallelism_type or 'N/A' }}</span>
                 </div>
 
                 {% if has_data %}
@@ -70,11 +71,11 @@
                     </div>
                     <div class="metric">
                         <span class="title">Training time:</span>
-                        <span class="value">{{ training_time }}s</span>
+                        <span class="value">{{ training_time }}</span>
                     </div>
                     <div class="metric">
-                        <span class="title">Test time:</span>
-                        <span class="value">{{ test_time }}s</span>
+                        <span class="title"> Test time:</span>
+                        <span class="value">{{ test_time }}</span>
                     </div>
                     <div class="metric">
                         <span class="title">Throughput:</span>
@@ -106,17 +107,77 @@
             </section>
         </div>
 
+        <!--Placeholder for graphs section-->
+        <section class="graph-section">
+            <h2>Graphs</h2>
+            <div class="graphs-container">
+                {% if has_data %}
+                <div class="graph-card">
+                    <h3>Accuracy over Epochs</h3>
+                    <img src="{{ url_for('static', filename='images/accuracy_graph.png') }}" alt="Accuracy Graph">
+                </div>
+                <div class="graph-card">
+                    <h3>Loss over Epochs</h3>
+                    <img src="{{ url_for('static', filename='images/loss_graph.png') }}" alt="Loss Graph">
+                </div>
+                {% else %}
+                <div class="waiting-card">
+                    <div class="spinner"></div>
+                    <p>Waiting for graphs...</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+
         <section class="history-section">
             <h2>Test history</h2>
             <div class="results-display">
+                {% if has_history %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Parallelism Type</th>
+                            <th>Accuracy</th>
+                            <th>Training Time</th>
+                            <th>Test Time</th>
+                            <th>Throughput</th>
+                            <th>Latency per Batch</th>
+                            <th>World Size</th>
+                            <th>Epochs</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in history %}
+                        <tr>
+                            <td>{{ entry.model or 'SVM' }}</td>
+                            <td>{{ entry.parallelism_type }}</td>
+                            <td>{{ entry.accuracy }}%</td>
+                            <td>{{ entry.training_time }}s</td>
+                            <td>{{ entry.test_time }}s</td>
+                            <td>{{ entry.throughput }}</td>
+                            <td>{{ entry.latency_per_batch }}ms</td>
+                            <td>{{ entry.world_size }}</td>
+                            <td>{{ entry.epochs }}</td>
+                            <td>{{ entry.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
                 <div class="waiting-card">
                     <div class="spinner"></div>
                     <p>Waiting for history log file...</p>
                 </div>
+                {% endif %}
             </div>
         </section>
 
     </main>
+    <script src="{{ url_for('static', filename='js/status.js') }}"></script>
+
 </body>
 
 </html>
