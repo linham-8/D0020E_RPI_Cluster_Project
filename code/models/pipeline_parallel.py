@@ -116,7 +116,7 @@ if rank == 0:
         avg_batch_latency = test_time / (len(Xt) / 64)
 
     log = {
-        "model_type": "pipeline_parallel",
+        "parallelism_type": "pipeline_parallel",
         "accuracy": float(final_acc),
         "training_time": round(training_time, 2),
         "test_time": round(test_time, 2),
