@@ -37,6 +37,11 @@ main {
     gap: 10px;
 }
 
+.title-bar {
+    display: flex;
+    justify-content: space-between;
+}
+
 /* Sections */
 section {
     background: #1a1d24;
@@ -103,6 +108,15 @@ button {
     background: #a71826;
 }
 
+.btn-clear {
+    background: grey;
+    color: white;
+}
+
+.btn-clear:hover {
+    background: rgb(73, 73, 73);
+}
+
 /* Test results */
 .results-header {
     display: flex;
@@ -133,6 +147,21 @@ button {
 .metric-card .metric .value {
     font-weight: bold;
     color: #0b6620;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border: 1px solid white;
+    margin-top: 10px;
+}
+
+th,
+td {
+    padding: 8px;
+    text-align: left;
+    border: 1px solid white;
+    border-bottom: 1px solid white;
 }
 
 /* Simple Spinner */
