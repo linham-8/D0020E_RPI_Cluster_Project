@@ -102,7 +102,7 @@ if rank == 0:
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    with open("/scratch/temp/data_parallel.log", "w") as f:
+    with open("/scratch/temp/latest.log", "w") as f:
         f.write(json.dumps(log))
     with open("/scratch/temp/history.log", "a") as f:
         f.write(json.dumps(log) + "\n")

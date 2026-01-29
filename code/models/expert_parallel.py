@@ -177,7 +177,7 @@ if rank == 0:
             gate_model.state_dict(), "/scratch/temp/expert_parallel_gate_model.pt"
         )
 
-    with open("/scratch/temp/expert_parallel.log", "w") as f:
+    with open("/scratch/temp/latest.log", "w") as f:
         f.write(json.dumps(log))
     with open("/scratch/temp/history.log", "a") as f:
         f.write(json.dumps(log) + "\n")

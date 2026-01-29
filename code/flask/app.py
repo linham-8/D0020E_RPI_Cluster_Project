@@ -42,7 +42,15 @@ def index():
                 except ProcessLookupError:
                     pass
             return redirect(url_for("index"))
-    log_data = read_newest_log()
+
+        elif action == "clear-history":
+            try:
+                os.remove("/scratch/temp/history.log")
+            except FileNotFoundError:
+                pass
+            return redirect(url_for("index"))
+
+    log_data = read_latest_log()
     history_data = read_history_log()
     print(f"Log Data: {log_data}")
     print(f"History Data: {history_data}")
@@ -78,7 +86,7 @@ def api_status():
 # TODO function to clear history log
 
 
-def read_newest_log():
+def read_latest_log():
     """Reads the newest log file from /scratch/temp and returns its data."""
     default_data = {
         "parallelism_type": "N/A",
@@ -92,15 +100,9 @@ def read_newest_log():
         "timestamp": "N/A",
     }
     try:
-        log_dir = Path("/scratch/temp")
-        log_files = list(log_dir.glob("*_parallel.log"))
+        latest_log_path = Path("/scratch/temp/latest.log")
 
-        if not log_files:
-            return default_data
-
-        latest_log = max(log_files, key=lambda f: f.stat().st_mtime)
-
-        with open(latest_log, "r") as f:
+        with open(latest_log_path, "r") as f:
             data = json.load(f)
             return {
                 "parallelism_type": data.get("parallelism_type", "N/A"),
@@ -113,7 +115,7 @@ def read_newest_log():
                 "epochs": data.get("epochs", "N/A"),
                 "timestamp": data.get("timestamp", "N/A"),
                 "has_data": True,
-                "log_file": str(latest_log.name),
+                "log_file": str(latest_log_path.name),
             }
     except FileNotFoundError:
         print("Log file not found.")

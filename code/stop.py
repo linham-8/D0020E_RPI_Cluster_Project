@@ -24,7 +24,7 @@ def stop_cluster(selected_model):
         subprocess.run(f"ssh {node} 'pkill -f {model_filename}'", shell=True)
 
     subprocess.run(f"rm -f {temp_dir}/{selected_model}_sync", shell=True)
-    subprocess.run(f"rm -f {temp_dir}/{selected_model}.log", shell=True)
+    subprocess.run(f"rm -f {temp_dir}/latest.log", shell=True)
 
 
 if __name__ == "__main__":

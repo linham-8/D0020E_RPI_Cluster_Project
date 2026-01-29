@@ -131,7 +131,16 @@
 
 
         <section class="history-section">
-            <h2>Test history</h2>
+            <div class="title-bar">
+                <h2>Test history</h2>
+                <form method="post">
+                    <div class="buttons">
+                        <button type="submit" name="action" value="clear-history" class="btn-clear">Clear
+                            history</button>
+                    </div>
+                </form>
+
+            </div>
             <div class="results-display">
                 {% if has_history %}
                 <table>
