@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Main test page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    <header>
+        <h1>
+            <a href="{{ url_for('index') }}">Run tests</a> |
+            <a href="{{ url_for('api_status') }}">Status</a>
+        </h1>
+    </header>
+
+    <main>
+        <div class="two-columns">
+            <section class="config-section">
+                <h2>Configuration</h2>
+                <form method="post">
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label for="model">Model:</label>
+                            <select name="model" id="model" required>
+                                <option value="">-- Choose --</option>
+                                <option value="svm">SVM</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="parallelism">Parallelism type:</label>
+                            <select name="parallelism" id="parallelism" required>
+                                <option value="">-- Choose --</option>
+                                <option value="data_parallel">Data parallelism</option>
+                                <option value="expert_parallel">Expert parallelism</option>
+                                <option value="pipeline_parallel">Pipeline parallelism</option>
+                                <option value="model_parallel">Model parallelism</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="saved">Use saved data?</label>
+                            <select name="saved" id="saved" required>
+                                <option value="">-- Choose --</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="buttons">
+                        <button type="submit" name="action" value="start" class="btn-start">Start</button>
+                        <button type="submit" name="action" value="stop" class="btn-stop">Stop</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="results-section">
+                <h2>Test Results</h2>
+                <div class="meta">
+                    Model: <span>{{ model or 'SVM' }}</span> |
+                    Parallelism Type: <span>{{ parallelism_type or 'N/A' }}</span>
+                </div>
+
+                {% if has_data %}
+                <div class="metric-card">
+                    <div class="metric">
+                        <span class="title">Accuracy:</span>
+                        <span class="value">{{ accuracy }}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Training time:</span>
+                        <span class="value">{{ training_time }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title"> Test time:</span>
+                        <span class="value">{{ test_time }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Throughput:</span>
+                        <span class="value">{{ throughput }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Latency per batch:</span>
+                        <span class="value">{{ latency_per_batch }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">World size:</span>
+                        <span class="value">{{ world_size }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Epochs:</span>
+                        <span class="value">{{ epochs }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="title">Timestamp:</span>
+                        <span class="value">{{ timestamp }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="waiting-card">
+                    <div class="spinner"></div>
+                    <p>Waiting for log file...</p>
+                </div>
+                {% endif %}
+            </section>
+        </div>
+
+        <!--Placeholder for graphs section-->
+        <section class="graph-section">
+            <h2>Graphs</h2>
+            <div class="graphs-container">
+                {% if has_data %}
+                <div class="graph-card">
+                    <h3>Accuracy over Epochs</h3>
+                    <img src="{{ url_for('static', filename='images/accuracy_graph.png') }}" alt="Accuracy Graph">
+                </div>
+                <div class="graph-card">
+                    <h3>Loss over Epochs</h3>
+                    <img src="{{ url_for('static', filename='images/loss_graph.png') }}" alt="Loss Graph">
+                </div>
+                {% else %}
+                <div class="waiting-card">
+                    <div class="spinner"></div>
+                    <p>Waiting for graphs...</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+
+        <section class="history-section">
+            <div class="title-bar">
+                <h2>Test history</h2>
+                <form method="post">
+                    <div class="buttons">
+                        <button type="submit" name="action" value="clear-history" class="btn-clear">Clear
+                            history</button>
+                    </div>
+                </form>
+
+            </div>
+            <div class="results-display">
+                {% if has_history %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Parallelism Type</th>
+                            <th>Accuracy</th>
+                            <th>Training Time</th>
+                            <th>Test Time</th>
+                            <th>Throughput</th>
+                            <th>Latency per Batch</th>
+                            <th>World Size</th>
+                            <th>Epochs</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in history %}
+                        <tr>
+                            <td>{{ entry.model or 'SVM' }}</td>
+                            <td>{{ entry.parallelism_type }}</td>
+                            <td>{{ entry.accuracy }}%</td>
+                            <td>{{ entry.training_time }}s</td>
+                            <td>{{ entry.test_time }}s</td>
+                            <td>{{ entry.throughput }}</td>
+                            <td>{{ entry.latency_per_batch }}ms</td>
+                            <td>{{ entry.world_size }}</td>
+                            <td>{{ entry.epochs }}</td>
+                            <td>{{ entry.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="waiting-card">
+                    <div class="spinner"></div>
+                    <p>Waiting for history log file...</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+    </main>
+    <script src="{{ url_for('static', filename='js/status.js') }}"></script>
+
+</body>
+
+</html>
