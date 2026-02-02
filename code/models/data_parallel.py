@@ -40,12 +40,29 @@ if rank == 0:
     start_time = time.time()
 
 if use_saved != "yes":
+    last_log_time = 0
     for epoch in range(5):
         for i in range(0, len(X), 64):
             opt.zero_grad()
             loss = crit(model(X[i:i+64]), Y[i:i+64])
             loss.backward()
             opt.step()
+
+            if rank == 0:
+                current_time = time.time()
+                if current_time - last_log_time >= 1.0:
+                    current_image = (epoch * len(X) + i) * world_size
+                    total_images = len(X) * 5 * world_size
+                    live_log = {
+                        "progress": round((current_image / total_images) * 100, 2),
+                        "current": current_image,
+                        "total": total_images,
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    with open("/scratch/temp/live.log", "a") as f:
+                        json.dump(live_log, f)
+                        f.write("\n")
+                    last_log_time = current_time
 
 if rank == 0:
     end_time = time.time()
@@ -85,8 +102,9 @@ if rank == 0:
         "epochs": 5 if use_saved != "yes" else 0,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     }
-    
-    with open("/scratch/temp/data_parallel.log", "w") as f:
-        f.write(json.dumps(log))
+
+    with open("/scratch/temp/history.log", "a") as f:
+        json.dump(log, f)
+        f.write("\n")
 
 dist.destroy_process_group()

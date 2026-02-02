@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+import time
 
 compute_nodes = ["pi1", "pi2", "pi3", "pi4"]
 
@@ -18,11 +19,12 @@ models = {
 }
 
 def start_cluster(selected_model, model_path, saved_choice):
+    """Initierar träningskluster för den valda modellen."""
     model_filename = models[selected_model]
     processes = []
 
     subprocess.run(f"rm -f {temp_dir}/{selected_model}_sync", shell=True)
-    subprocess.run(f"rm -f {temp_dir}/{selected_model}.log", shell=True)
+    subprocess.run(f"rm -f {temp_dir}/live.log", shell=True)
 
     subprocess.run(f"pkill -f {model_filename}", shell=True)
     for node in compute_nodes:
