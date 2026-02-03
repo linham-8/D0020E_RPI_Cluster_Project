@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+import time
 
 compute_nodes = ["pi1", "pi2", "pi3", "pi4"]
 
@@ -21,6 +22,7 @@ models = {
 
 
 def start_cluster(selected_model, model_path, saved_choice):
+    """Initierar träningskluster för den valda modellen."""
     model_filename = models[selected_model]
     processes = []
 

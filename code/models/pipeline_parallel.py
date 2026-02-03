@@ -50,6 +50,7 @@ if rank == 0:
 
     if use_saved != "yes":
         dist.broadcast(torch.tensor([1]), src=0)
+        last_log_time = 0
 
         for epoch in range(5):
             for i in range(0, len(X), 64):
@@ -68,6 +69,21 @@ if rank == 0:
 
                 grad_initial = torch.autograd.grad(loss, preds)[0]
                 dist.send(grad_initial, dst=4)
+
+                current_time = time.time()
+                if current_time - last_log_time >= 1.0:
+                    current_image = epoch * len(X) + i
+                    total_images = len(X) * 5
+                    live_log = {
+                        "progress": round((current_image / total_images) * 100, 2),
+                        "current": current_image,
+                        "total": total_images,
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    with open("/scratch/temp/live.log", "a") as f:
+                        json.dump(live_log, f)
+                        f.write("\n")
+                    last_log_time = current_time
 
         dist.broadcast(torch.tensor([0]), src=0)
     else:
