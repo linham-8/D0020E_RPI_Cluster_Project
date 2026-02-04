@@ -124,7 +124,6 @@ if rank == 0:
                         with open(os.path.join(archive_dir, "live.log"), "a") as f:
                             json.dump(live_log, f)
                             f.write("\n")
-                            
                     last_log_time = current_time
 
         dist.broadcast(torch.tensor([0]), src=0)

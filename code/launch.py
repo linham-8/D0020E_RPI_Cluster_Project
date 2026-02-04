@@ -27,9 +27,10 @@ def start_cluster(selected_model, model_path, saved_choice):
     processes = []
 
     subprocess.run(f"rm -f {temp_dir}/{selected_model}_sync", shell=True)
-    subprocess.run(f"rm -f {temp_dir}/latest.log", shell=True)
-
     if saved_choice == "no":
+        subprocess.run(f"rm -f {temp_dir}/live.log", shell=True)
+        subprocess.run(f"rm -f {temp_dir}/latest.log", shell=True)
+        
         run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         archive_dir = os.path.join(temp_dir, "archive", f"{run_id}_{selected_model}")
         subprocess.run(f"mkdir -p {archive_dir}", shell=True)

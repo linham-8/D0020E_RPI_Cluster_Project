@@ -77,7 +77,6 @@ if use_saved != "yes":
                         with open(os.path.join(archive_dir, "live.log"), "a") as f:
                             json.dump(live_log, f)
                             f.write("\n")
-
                     last_log_time = current_time
 
 if rank == 0:
