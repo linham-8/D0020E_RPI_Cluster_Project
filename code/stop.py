@@ -25,6 +25,7 @@ def stop_cluster(selected_model):
             
     subprocess.run(f"rm -f {temp_dir}/{selected_model}_sync", shell=True)
     subprocess.run(f"rm -f {temp_dir}/live.log", shell=True)
+    subprocess.run(f"rm -f {temp_dir}/latest.log", shell=True)
 
 def stop_session():
     """Stoppar allt, rensar sessionen (history.log)."""
@@ -37,6 +38,7 @@ def stop_session():
 
     subprocess.run(f"rm -f {temp_dir}/*_sync", shell=True)
     subprocess.run(f"rm -f {temp_dir}/*.log", shell=True)
+    print("Session cleared.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
