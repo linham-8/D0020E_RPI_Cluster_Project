@@ -9,6 +9,7 @@ import time
 os.environ["GLOO_SOCKET_IFNAME"] = "eth0"
 rank = int(sys.argv[1])
 use_saved = sys.argv[2] if len(sys.argv) > 2 else "no"
+archive_dir = sys.argv[3] if len(sys.argv) > 3 else None
 world_size = 5
 
 print(f"Rank {rank}: Trying to connect")
@@ -80,6 +81,12 @@ if rank == 0:
                     with open("/scratch/temp/live.log", "a") as f:
                         json.dump(live_log, f)
                         f.write("\n")
+                    
+                    if archive_dir:
+                        with open(os.path.join(archive_dir, "live.log"), "a") as f:
+                            json.dump(live_log, f)
+                            f.write("\n")
+
                     last_log_time = current_time
 
         dist.broadcast(torch.tensor([0]), src=0)
@@ -147,6 +154,13 @@ if rank == 0:
         f.write(json.dumps(log))
     with open("/scratch/temp/history.log", "a") as f:
         f.write(json.dumps(log) + "\n")
+        json.dump(log, f)
+        f.write("\n")
+    
+    if archive_dir:
+        with open(os.path.join(archive_dir, "history.log"), "a") as f:
+            json.dump(log, f)
+            f.write("\n")
 
 else:
     model = nn.Linear(784, 2)

@@ -1,7 +1,7 @@
 import subprocess
 import sys
 import os
-import time
+import datetime
 
 compute_nodes = ["pi1", "pi2", "pi3", "pi4"]
 
@@ -29,17 +29,21 @@ def start_cluster(selected_model, model_path, saved_choice):
     subprocess.run(f"rm -f {temp_dir}/{selected_model}_sync", shell=True)
     subprocess.run(f"rm -f {temp_dir}/latest.log", shell=True)
 
+    run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    archive_dir = os.path.join(temp_dir, "archive", f"{run_id}_{selected_model}")
+    subprocess.run(f"mkdir -p {archive_dir}", shell=True)
+
     subprocess.run(f"pkill -f {model_filename}", shell=True)
     for node in compute_nodes:
         subprocess.run(f"ssh {node} 'pkill -f {model_filename}'", shell=True)
 
     print(f"Starting Head Node for {selected_model} (Saved: {saved_choice})")
-    process_0 = subprocess.Popen(["python", "-u", model_path, "0", saved_choice])
+    process_0 = subprocess.Popen(["python", "-u", model_path, "0", saved_choice, archive_dir])
     processes.append(process_0)
 
     for rank, node in enumerate(compute_nodes, start=1):
         print(f"Starting Rank {rank} on {node}")
-        cmd = f"ssh {node} 'python -u {model_path} {rank} {saved_choice}'"
+        cmd = f"ssh {node} 'python -u {model_path} {rank} {saved_choice} {archive_dir}'"
         process = subprocess.Popen(cmd, shell=True)
         processes.append(process)
 
