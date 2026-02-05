@@ -1,10 +1,8 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
-import json
+from utils import read_latest_log, read_history_log
 import subprocess
 import os
 import signal
-from pathlib import Path
-
 
 app = Flask(__name__)
 active_tasks = {}
@@ -14,9 +12,9 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 code_dir = os.path.dirname(base_dir)
 launch_script = os.path.join(code_dir, "launch.py")
 
-
 @app.route("/", methods=["GET", "POST"])
 def index():
+    """Main page route used to start and stop training, and view results and graphs"""
     if request.method == "POST":
         action = request.form["action"]
         if action == "start":
@@ -43,6 +41,13 @@ def index():
                     pass
             return redirect(url_for("index"))
 
+        elif action == "clear-latest":
+            try:
+                os.remove("/scratch/temp/latest.log")
+            except FileNotFoundError:
+                pass
+            return redirect(url_for("index"))
+        
         elif action == "clear-history":
             try:
                 os.remove("/scratch/temp/history.log")
@@ -50,97 +55,50 @@ def index():
                 pass
             return redirect(url_for("index"))
 
-    log_data = read_latest_log()
-    history_data = read_history_log()
-    print(f"Log Data: {log_data}")
-    print(f"History Data: {history_data}")
-    return render_template(
-        "index.html",
-        **log_data,
-        history=history_data,
-        has_history=len(history_data) > 0,
-    )
+    return render_template("index.html")
 
+@app.route("/api/docs")
+def api_docs():
+    """Browseaable API GET rotues"""
+    return """
+    <h2>
+        <a href="/">Back to main page</a>
+    </h2>
+    <ul>
+        <li><a href="/api/status">Status</a></li>
+        <li><a href="/api/latest">Latest Log</a></li>
+        <li><a href="/api/history">History log</a></li>
+    </ul>
+    """
 
 @app.route("/api/start", methods=["POST"])
 def api_start():
+    """API route used to start training"""
     # Start logic here
     return jsonify({"status": "started"})
 
-
 @app.route("/api/stop", methods=["POST"])
 def api_stop():
+    """API route used to stop training"""
     ## Stop logic here
     return jsonify({"status": "stopped"})
 
-
-@app.route("/api/status", methods=["GET"])
+@app.route("/api/status")
 def api_status():
+    """API route returning training status"""
     pid = active_tasks.get("training")
     status = "running" if pid else "stopped"
     return jsonify({"status": status})
 
+@app.route("/api/latest")
+def api_latest():
+    """API route returning the latest log"""
+    return jsonify(read_latest_log())
 
-# Helper functions
-
-# TODO function to clear history log
-
-
-def read_latest_log():
-    """Reads the newest log file from /scratch/temp and returns its data."""
-    default_data = {
-        "parallelism_type": "N/A",
-        "accuracy": "N/A",
-        "training_time": "N/A",
-        "test_time": "N/A",
-        "throughput": "N/A",
-        "latency_per_batch": "N/A",
-        "world_size": "N/A",
-        "epochs": "N/A",
-        "timestamp": "N/A",
-    }
-    try:
-        latest_log_path = Path("/scratch/temp/latest.log")
-
-        with open(latest_log_path, "r") as f:
-            data = json.load(f)
-            return {
-                "parallelism_type": data.get("parallelism_type", "N/A"),
-                "accuracy": data.get("accuracy", "N/A"),
-                "training_time": data.get("training_time", "N/A"),
-                "test_time": data.get("test_time", "N/A"),
-                "throughput": data.get("throughput", "N/A"),
-                "latency_per_batch": data.get("latency_per_batch", "N/A"),
-                "world_size": data.get("world_size", "N/A"),
-                "epochs": data.get("epochs", "N/A"),
-                "timestamp": data.get("timestamp", "N/A"),
-                "has_data": True,
-                "log_file": str(latest_log_path.name),
-            }
-    except FileNotFoundError:
-        print("Log file not found.")
-        return default_data
-    except json.JSONDecodeError:
-        print("Error decoding JSON from log file.")
-        return default_data
-
-
-def read_history_log():
-    history = []
-    try:
-        history_log_path = Path("/scratch/temp/history.log")
-        if not history_log_path.exists():
-            return history
-
-        with open(history_log_path, "r") as f:
-            for line in f:
-                entry = json.loads(line.strip())
-                history.append(entry)
-        return history
-    except Exception as e:
-        print(f"Error reading history log: {e}")
-        return history
-
+@app.route("/api/history")
+def api_history():
+    """API route returning the history log"""
+    return jsonify(read_history_log())
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
