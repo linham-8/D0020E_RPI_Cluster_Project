@@ -5,7 +5,6 @@ import os
 import signal
 from pathlib import Path
 
-
 app = Flask(__name__)
 active_tasks = {}
 has_data = False
@@ -13,7 +12,6 @@ has_data = False
 base_dir = os.path.dirname(os.path.abspath(__file__))
 code_dir = os.path.dirname(base_dir)
 launch_script = os.path.join(code_dir, "launch.py")
-
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -43,6 +41,13 @@ def index():
                     pass
             return redirect(url_for("index"))
 
+        elif action == "clear-latest":
+            try:
+                os.remove("/scratch/temp/latest.log")
+            except FileNotFoundError:
+                pass
+            return redirect(url_for("index"))
+        
         elif action == "clear-history":
             try:
                 os.remove("/scratch/temp/history.log")
@@ -50,41 +55,33 @@ def index():
                 pass
             return redirect(url_for("index"))
 
-    log_data = read_latest_log()
-    history_data = read_history_log()
-    print(f"Log Data: {log_data}")
-    print(f"History Data: {history_data}")
-    return render_template(
-        "index.html",
-        **log_data,
-        history=history_data,
-        has_history=len(history_data) > 0,
-    )
-
+    return render_template("index.html")
 
 @app.route("/api/start", methods=["POST"])
 def api_start():
     # Start logic here
     return jsonify({"status": "started"})
 
-
 @app.route("/api/stop", methods=["POST"])
 def api_stop():
     ## Stop logic here
     return jsonify({"status": "stopped"})
 
-
-@app.route("/api/status", methods=["GET"])
+@app.route("/api/status")
 def api_status():
     pid = active_tasks.get("training")
     status = "running" if pid else "stopped"
     return jsonify({"status": status})
 
+@app.route("/api/latest")
+def api_latest():
+    return jsonify(read_latest_log())
+
+@app.route("/api/history")
+def api_history():
+    return jsonify(read_history_log())
 
 # Helper functions
-
-# TODO function to clear history log
-
 
 def read_latest_log():
     """Reads the newest log file from /scratch/temp and returns its data."""
@@ -123,7 +120,6 @@ def read_latest_log():
     except json.JSONDecodeError:
         print("Error decoding JSON from log file.")
         return default_data
-
 
 def read_history_log():
     history = []

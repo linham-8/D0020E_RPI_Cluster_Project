@@ -40,6 +40,17 @@ main {
 .title-bar {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.title-bar h2 {
+    margin: 0;
+    line-height: 1;
+}
+
+.title-bar form {
+    margin: 0;
 }
 
 /* Sections */
