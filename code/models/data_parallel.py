@@ -153,13 +153,13 @@ def main():
                 total_images_processed = len(X) * world_size * 5
                 throughput = total_images_processed / training_time
                 total_batches = (len(X) / 64) * 5
-                avg_batch_latency = training_time / total_batches
+                avg_batch_latency = 1000 * (training_time / total_batches)
             else:
                 throughput = len(Xt) / test_time
                 avg_batch_latency = test_time / (len(Xt) / 64)
 
             log = {
-                "model_type": "data_parallel",
+                "parallelism_type": "data_parallel",
                 "accuracy": float(acc),
                 "training_time": round(training_time, 2),
                 "test_time": round(test_time, 2),
