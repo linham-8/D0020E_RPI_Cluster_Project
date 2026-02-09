@@ -9,16 +9,24 @@
 <body>
     <header>
         <h1>
-            <a href="{{ url_for('index') }}">Run tests</a> |
-            <a href="{{ url_for('api_status') }}">Status</a>
+            <a href="{{ url_for('index') }}">Main page</a> |
+            <a href="{{ url_for('api_docs') }}">API</a>
         </h1>
     </header>
 
     <main>
         <div class="two-columns">
             <section class="config-section">
-                <h2>Configuration</h2>
-                <form method="post">
+                <div class="title-bar">
+                    <h2>Configuration</h2>
+                    <div class="buttons">
+                        <button type="button" class="btn-clear"
+                            onclick="document.getElementById('config-form').reset();">
+                            Clear configuration</button>
+                    </div>
+                </div>
+
+                <form id="config-form" method="post">
                     <div class="input-grid">
                         <div class="input-group">
                             <label for="model">Model:</label>
@@ -44,72 +52,131 @@
                             <select name="saved" id="saved" required>
                                 <option value="">-- Choose --</option>
                                 <option value="yes">Yes</option>
-                                <option value="no">No</option> </select>
+                                <option value="no">No</option>
+                            </select>
                         </div>
                     </div>
 
                     <div class="buttons">
-                        <button type="submit" name="action" value="start" class="btn-start">Start</button>
-                        <button type="submit" name="action" value="stop" class="btn-stop">Stop</button>
+                        <button name="action" value="start" class="btn-start">Start</button>
+                        <button name="action" value="stop" class="btn-stop">Stop</button>
                     </div>
                 </form>
             </section>
 
             <section class="results-section">
-                <h2>Test Results</h2>
-                <div class="meta">
-                    Model: <span>{{ model or 'SVM' }}</span> |
-                    Parallelism Type: <span>{{ parallelism or 'N/A' }}</span>
+                <div class="title-bar">
+                    <h2>Test Results</h2>
+                    <form method="post">
+                        <div class="buttons">
+                            <button name="action" value="clear-latest" class="btn-clear">Clear
+                                latest</button>
+                        </div>
+                    </form>
                 </div>
 
+                <div class="meta">
+                    Model: <span data-key="model">{{ model or 'SVM' }}</span> |
+                    Type: <span data-key="parallelism_type">{{ parallelism_type or 'N/A' }}</span>
+                </div>
+
+                <div class="metrics-container">
+                    <div id="latest-card" class="metric-card" style="display: none;">
+                        <div class=" metric">
+                            <span class="title">Accuracy:</span>
+                            <span class="value" data-key="accuracy"></span> %
+                        </div>
+                        <div class="metric">
+                            <span class="title">Training time:</span>
+                            <span class="value" data-key="training_time"></span>s
+                        </div>
+                        <div class="metric">
+                            <span class="title">Test time:</span>
+                            <span class="value" data-key="test_time"></span>s
+                        </div>
+                        <div class="metric">
+                            <span class="title">Throughput:</span>
+                            <span class="value" data-key="throughput"></span>
+                        </div>
+                        <div class="metric">
+                            <span class="title">Latency:</span>
+                            <span class="value" data-key="latency_per_batch"></span>ms
+                        </div>
+                        <div class="metric">
+                            <span class="title">World size:</span>
+                            <span class="value" data-key="world_size"></span>
+                        </div>
+                        <div class="metric">
+                            <span class="title">Epochs:</span>
+                            <span class="value" data-key="epochs"></span>
+                        </div>
+                        <div class="metric">
+                            <span class="title">Timestamp:</span>
+                            <span class="value" data-key="timestamp"></span>
+                        </div>
+                    </div>
+
+                    <div id="latest-loader" class="waiting-card">
+                        <div class="spinner"></div>
+                        <p>Waiting for log file...</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!--Placeholder for graphs section-->
+        <section class="graph-section">
+            <h2>Graphs</h2>
+            <div class="graphs-container">
                 {% if has_data %}
-                <div class="metric-card">
-                    <div class="metric">
-                        <span class="title">Accuracy:</span>
-                        <span class="value">{{ accuracy }}%</span>
-                    </div>
-                    <div class="metric">
-                        <span class="title">Training time:</span>
-                        <span class="value">{{ training_time }}s</span>
-                    </div>
-                    <div class="metric">
-                        <span class="title">Test time:</span>
-                        <span class="value">{{ test_time }}s</span>
-                    </div>
-                    <div class="metric">
-                        <span class="title">Throughput:</span>
-                        <span class="value">{{ throughput }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="title">Latency per batch:</span>
-                        <span class="value">{{ latency_per_batch }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="title">World size:</span>
-                        <span class="value">{{ world_size }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="title">Epochs:</span>
-                        <span class="value">{{ epochs }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="title">Timestamp:</span>
-                        <span class="value">{{ timestamp }}</span>
-                    </div>
+                <div class="graph-card">
+                    <h3>Accuracy over Epochs</h3>
+                    <img src="{{ url_for('static', filename='images/accuracy_graph.png') }}" alt="Accuracy Graph">
+                </div>
+                <div class="graph-card">
+                    <h3>Loss over Epochs</h3>
+                    <img src="{{ url_for('static', filename='images/loss_graph.png') }}" alt="Loss Graph">
                 </div>
                 {% else %}
                 <div class="waiting-card">
                     <div class="spinner"></div>
-                    <p>Waiting for log file...</p>
+                    <p>Waiting for graphs...</p>
                 </div>
                 {% endif %}
-            </section>
-        </div>
+            </div>
+        </section>
+
 
         <section class="history-section">
-            <h2>Test history</h2>
+            <div class="title-bar">
+                <h2>Test history</h2>
+                <form method="post">
+                    <div class="buttons">
+                        <button name="action" value="clear-history" class="btn-clear">Clear
+                            history</button>
+                    </div>
+                </form>
+            </div>
+
             <div class="results-display">
-                <div class="waiting-card">
+                <table id="history-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Parallelism Type</th>
+                            <th>Accuracy</th>
+                            <th>Training Time</th>
+                            <th>Test Time</th>
+                            <th>Throughput</th>
+                            <th>Latency per Batch</th>
+                            <th>World Size</th>
+                            <th>Epochs</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body"></tbody>
+                </table>
+                <div id="history-loader" class="waiting-card">
                     <div class="spinner"></div>
                     <p>Waiting for history log file...</p>
                 </div>
@@ -117,6 +184,8 @@
         </section>
 
     </main>
+    <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+
 </body>
 
 </html>

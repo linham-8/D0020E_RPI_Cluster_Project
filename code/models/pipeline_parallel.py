@@ -5,8 +5,6 @@ import torch.distributed as dist
 import torch.nn as nn
 import json
 import time
-import traceback
-
 
 def main():
     # Argumenthantering

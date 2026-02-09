@@ -6,7 +6,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import json
 import time
 
-
 def main():
     # Argumenthantering
     try:

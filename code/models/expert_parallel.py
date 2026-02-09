@@ -7,7 +7,6 @@ import json
 import time
 import traceback
 
-
 def main():
     # Argumenthantering
     try:
