@@ -6,6 +6,15 @@ import torch.nn as nn
 import json
 import time
 
+def get_unique_filename(directory, base_name, extension):
+    """Hittar ett unikt filnamn genom att lägga till _1, _2 osv."""
+    counter = 1
+    file_path = os.path.join(directory, f"{base_name}.{extension}")
+    while os.path.exists(file_path):
+        file_path = os.path.join(directory, f"{base_name}_{counter}.{extension}")
+        counter += 1
+    return file_path
+
 def main():
     # Argumenthantering
     try:
@@ -157,25 +166,38 @@ def main():
             print(f"Total Training Time: {training_time:.2f}s")
 
             if use_saved != "yes":
-                total_images_processed = len(X) * 5
-                throughput = total_images_processed / training_time
                 total_batches = (len(X) / 64) * 5
-                avg_batch_latency = 1000 * (training_time / total_batches)
+                throughput = (len(X) * 5) / training_time
+                avg_latency = (training_time / total_batches) * 1000
+
+                log = {
+                    "type": "training_result",
+                    "model_type": "pipeline_parallel",
+                    "accuracy": float(final_acc),
+                    "training_time": round(training_time, 2),
+                    "test_time": round(test_time, 2),
+                    "throughput": round(throughput, 2),
+                    "latency_per_batch_ms": round(avg_latency, 2),
+                    "world_size": world_size,
+                    "epochs": 5,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                log_filename = "training_result"
             else:
                 throughput = len(Xt) / test_time
-                avg_batch_latency = 1000 * (test_time / (len(Xt) / 64))
+                avg_latency = (test_time / (len(Xt) / 64)) * 1000
 
-            log = {
-                "parallelism_type": "pipeline_parallel",
-                "accuracy": float(final_acc),
-                "training_time": round(training_time, 2),
-                "test_time": round(test_time, 2),
-                "throughput": round(throughput, 2),
-                "latency_per_batch": round(avg_batch_latency, 2),
-                "world_size": world_size,
-                "epochs": 5 if use_saved != "yes" else 0,
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            }
+                log = {
+                    "type": "test_result",
+                    "model_type": "pipeline_parallel",
+                    "accuracy": float(final_acc),
+                    "test_time": round(test_time, 2),
+                    "inference_throughput": round(throughput, 2),
+                    "inference_latency_ms": round(avg_latency, 2),
+                    "world_size": world_size,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                log_filename = "test_result"
 
             try:
                 with open("/scratch/temp/latest.log", "w") as f:
@@ -186,6 +208,9 @@ def main():
                     f.write("\n")
 
                 if archive_dir and os.path.isdir(archive_dir):
+                    unique_path = get_unique_filename(archive_dir, log_filename, "log")
+                    with open(unique_path, "w") as f:
+                        json.dump(log, f)
                     with open(os.path.join(archive_dir, "history.log"), "a") as f:
                         json.dump(log, f)
                         f.write("\n")
@@ -207,6 +232,8 @@ def main():
 
             if use_saved == "yes":
                 model_path = f"/scratch/temp/pipeline_parallel_rank{rank}_model.pt"
+                if archive_dir and os.path.exists(os.path.join(archive_dir, f"pipeline_parallel_rank{rank}_model.pt")):
+                    model_path = os.path.join(archive_dir, f"pipeline_parallel_rank{rank}_model.pt")
                 if os.path.exists(model_path):
                     model.load_state_dict(torch.load(model_path))
 

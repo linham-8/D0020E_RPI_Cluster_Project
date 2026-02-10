@@ -28,7 +28,7 @@ def clean_file(path):
 def zero_file(path):
     """Tömmer en fil utan att ta bort den. Skapar den om den inte finns."""
     try:
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             pass
     except OSError as e:
         print(f"Could not reset {path}: {e}")
@@ -56,21 +56,22 @@ def start_cluster(selected_model, model_path, saved_choice):
     live_log_path = os.path.join(TEMP_DIR, "live.log")
     latest_log_path = os.path.join(TEMP_DIR, "latest.log")
 
+    run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    mode = "train" if saved_choice == "no" else "test"
+    archive_dir = os.path.join(TEMP_DIR, "archive", f"{run_id}_{selected_model}_{mode}")
+
+    try:
+        os.makedirs(archive_dir, exist_ok=True)
+        print(f"Archive created: {archive_dir}")
+    except OSError as e:
+        print(f"Could not create archive folder: {e}")
+        sys.exit(1)
+
     if saved_choice == "no":
         zero_file(live_log_path)
         zero_file(latest_log_path)
-
-        run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        archive_dir = os.path.join(TEMP_DIR, "archive", f"{run_id}_{selected_model}")
-        try:
-            os.makedirs(archive_dir, exist_ok=True)
-            print(f"Archive created: {archive_dir}")
-        except OSError as e:
-            print(f"Could not create archive folder: {e}")
-            sys.exit(1)
     else:
-        archive_dir = "None"
-        print(f'Running in test mode (saved="yes"). No archive map was created.')
+        print(f'Running in test mode (saved="yes"). Result saved in test archive.')
 
     print(f"Cleaning old processes")
     subprocess.run(["pkill", "-f", model_filename], check=False)
