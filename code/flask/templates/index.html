@@ -22,7 +22,8 @@
                     <div class="buttons">
                         <button type="button" class="btn-clear"
                             onclick="document.getElementById('config-form').reset();">
-                            Clear configuration</button>
+                            Clear configuration
+                        </button>
                     </div>
                 </div>
 
@@ -69,8 +70,9 @@
                     <h2>Test Results</h2>
                     <form method="post">
                         <div class="buttons">
-                            <button name="action" value="clear-latest" class="btn-clear">Clear
-                                latest</button>
+                            <button name="action" value="clear-latest" class="btn-clear">
+                                Clear latest
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -82,7 +84,7 @@
 
                 <div class="metrics-container">
                     <div id="latest-card" class="metric-card" style="display: none;">
-                        <div class=" metric">
+                        <div class="metric">
                             <span class="title">Accuracy:</span>
                             <span class="value" data-key="accuracy"></span> %
                         </div>
@@ -124,36 +126,41 @@
             </section>
         </div>
 
-        <!--Placeholder for graphs section-->
+        <!-- Graph section -->
         <section class="graph-section">
-            <h2>Graphs</h2>
-            <div class="graphs-container">
-                {% if has_data %}
-                <div class="graph-card">
-                    <h3>Accuracy over Epochs</h3>
-                    <img src="{{ url_for('static', filename='images/accuracy_graph.png') }}" alt="Accuracy Graph">
+            <div class="title-bar">
+                <h2>History Graph</h2>
+                <div class="controls">
+                    <label for="metric-select">Metric:</label>
+                    <select id="metric-select">
+                        <option value="accuracy" selected>Accuracy</option>
+                        <option value="training_time">Training Time</option>
+                        <option value="test_time">Test Time</option>
+                        <option value="throughput">Throughput</option>
+                        <option value="latency_per_batch">Latency</option>
+                        <option value="epochs">Epochs</option>
+                    </select>
                 </div>
-                <div class="graph-card">
-                    <h3>Loss over Epochs</h3>
-                    <img src="{{ url_for('static', filename='images/loss_graph.png') }}" alt="Loss Graph">
-                </div>
-                {% else %}
-                <div class="waiting-card">
+            </div>
+
+            <div class="graph-container">
+                <canvas id="history-chart" style="display: none;"></canvas>
+
+                <div id="graph-loader" class="waiting-card">
                     <div class="spinner"></div>
-                    <p>Waiting for graphs...</p>
+                    <p>Waiting for history data...</p>
                 </div>
-                {% endif %}
             </div>
         </section>
-
 
         <section class="history-section">
             <div class="title-bar">
                 <h2>Test history</h2>
                 <form method="post">
                     <div class="buttons">
-                        <button name="action" value="clear-history" class="btn-clear">Clear
-                            history</button>
+                        <button name="action" value="clear-history" class="btn-clear">
+                            Clear history
+                        </button>
                     </div>
                 </form>
             </div>
@@ -176,6 +183,7 @@
                     </thead>
                     <tbody id="history-body"></tbody>
                 </table>
+
                 <div id="history-loader" class="waiting-card">
                     <div class="spinner"></div>
                     <p>Waiting for history log file...</p>
@@ -184,7 +192,15 @@
         </section>
 
     </main>
+
+    <!-- log.js -->
     <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Graph.js --> 
+    <script src="{{ url_for('static', filename='js/Graphs.js') }}"></script>
 
 </body>
 
