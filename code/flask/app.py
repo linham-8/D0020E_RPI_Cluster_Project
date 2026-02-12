@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
-from utils import read_latest_log, read_history_log
+from utils.log_reader import read_latest_log, read_history_log, get_archived_runs
 import subprocess
 import os
 import signal
@@ -8,9 +8,9 @@ app = Flask(__name__)
 active_tasks = {}
 has_data = False
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-code_dir = os.path.dirname(base_dir)
-launch_script = os.path.join(code_dir, "launch.py")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CODE_DIR = os.path.dirname(BASE_DIR)
+launch_script = os.path.join(CODE_DIR, "launch.py")
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -100,5 +100,11 @@ def api_history():
     """API route returning the history log"""
     return jsonify(read_history_log())
 
+@app.route("/api/archives/<model_type>")
+def api_archives(model_type):
+    """Api route returing the archived log"""
+    runs = get_archived_runs(filter_type=model_type)
+    return jsonify(runs)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5004, debug=True)

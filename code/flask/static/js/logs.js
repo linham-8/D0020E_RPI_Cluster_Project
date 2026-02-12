@@ -1,3 +1,5 @@
+let allRuns = [];
+
 function formatVal(val, key) {
     // Round decimals to two digits
     if (typeof val === 'number' && val % 1 !== 0) {
@@ -13,6 +15,64 @@ function formatVal(val, key) {
     return val;
 }
 
+async function updateSavedOptions() {
+    const modelType = document.getElementById('parallelism').value;
+    const savedSelect = document.getElementById('saved');
+    
+    savedSelect.innerHTML = '<option value="no">New Training Run (Default)</option>';
+    
+    if (!modelType) return;
+
+    try {
+        const res = await fetch(`/api/archives/${modelType}`);
+        const runs = await res.json();
+
+        if (runs && runs.length > 0) {
+            const group = document.createElement('optgroup');
+            group.label = "Load saved model from:";
+            
+            runs.forEach(run => {
+                const opt = document.createElement('option');
+                opt.value = run.path;
+                opt.textContent = `${run.timestamp} (Ep: ${run.epochs})`;
+                group.appendChild(opt);
+            });
+            savedSelect.appendChild(group);
+        }
+    } catch (err) {
+        console.error("Error fetching archives:", err);
+    }
+}
+
+function showTestsForRun(runIndex) {
+    const run = allRuns[runIndex];
+    const tbody = document.getElementById('test-body');
+    tbody.innerHTML = '';
+
+    const rows = document.querySelectorAll('#train-body tr');
+    rows.forEach((r, idx) => {
+        if (idx === runIndex) r.classList.add('selected-row');
+        else r.classList.remove('selected-row');
+    });
+
+    if (!run.tests || run.tests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">No tests found for this run.</td></tr>';
+        return;
+    }
+
+    run.tests.forEach(test => {
+        const timePart = test.timestamp.split(' ')[1]; 
+        tbody.innerHTML += `
+            <tr>
+                <td>${timePart}</td>
+                <td style="font-weight: bold; color: #28a745;">${formatVal(test.accuracy)}%</td>
+                <td>${formatVal(test.test_time)}</td>
+                <td>${formatVal(test.inference_latency_ms)}</td>
+            </tr>`;
+    });
+}
+
+
 async function refreshLogs() {
     try {
         const [latestRes, historyRes] = await Promise.all([
@@ -21,12 +81,16 @@ async function refreshLogs() {
         ]);
 
         const latest = await latestRes.json();
-        const history = await historyRes.json();
+        allRuns = await historyRes.json();
 
         // Update latest metrics
         if (latest.has_data) {
             document.querySelectorAll('[data-key]').forEach(el => {
                 const key = el.getAttribute('data-key');
+
+                if (key === 'time_val') val = latest.training_time !== "N/A" ? latest.training_time : latest.test_time;
+                if (key === 'throughput') val = latest.throughput !== "N/A" ? latest.throughput : latest.inference_throughput;
+
                 if (latest[key] !== undefined) {
                     el.textContent = formatVal(latest[key], key);
                 }
@@ -36,25 +100,21 @@ async function refreshLogs() {
             document.getElementById('latest-loader').style.display = 'none';
         }
 
-        // Update History Table
-        if (history && history.length > 0) {
-            document.getElementById('history-body').innerHTML = history.map(row => `
-                <tr>
-                    <td>${row.model || 'SVM'}</td>
-                    <td>${formatVal(row.parallelism_type, 'parallelism_type')}</td>
-                    <td>${formatVal(row.accuracy)} %</td>
-                    <td>${formatVal(row.training_time)} s</td>
-                    <td>${formatVal(row.test_time)} s</td>
-                    <td>${formatVal(row.throughput)}</td>
-                    <td>${formatVal(row.latency_per_batch)} ms</td>
-                    <td>${row.world_size}</td>
-                    <td>${row.epochs}</td>
-                    <td>${row.timestamp}</td>
+        const trainBody = document.getElementById('train-body');
+        
+        // Vi uppdaterar bara listan om antalet körningar har ändrats, 
+        // annars tappar man markeringen (den blå färgen) när man klickat på en rad.
+        if (trainBody && allRuns && trainBody.children.length !== allRuns.length) {
+            trainBody.innerHTML = allRuns.map((run, index) => `
+                <tr onclick="showTestsForRun(${index})" style="cursor: pointer;">
+                    <td>${run.timestamp}</td>
+                    <td>${formatVal(run.parallelism_type, 'parallelism_type')}</td>
+                    <td>${run.epochs}</td>
+                    <td>${formatVal(run.training_time)}</td>
+                    <td>${formatVal(run.throughput)}</td>
                 </tr>`).join('');
-
-            document.getElementById('history-table').style.display = 'table';
-            document.getElementById('history-loader').style.display = 'none';
         }
+
     } catch (err) {
         console.error("Dashboard update failed:", err);
     }
