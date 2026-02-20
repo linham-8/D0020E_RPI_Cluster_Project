@@ -1,6 +1,5 @@
 import psutil
 from logger import Logger
-import json 
 
 class CPUlogger(Logger):
     
@@ -8,32 +7,19 @@ class CPUlogger(Logger):
                  filepathLiveLog = "code/loggers/live_cpu_metrics.json",
                  interval = 1.0):
 
-            self.filepath = filepath
-            self.filepathLiveLog = filepathLiveLog
+            super().__init__(filepath, filepathLiveLog)
             self.interval = interval
             "Remove files if already exists"
     
     def collect(self):
-        latestlog = {
+        log = {
             "cpu-usage": psutil.cpu_percent(self.interval)
             #"count": psutil.cpu_count()
             #"cpu_stats": psutil.cpu_stats()
+            #ADD relevant
         }
-        self.updateLogFile(latestlog)
-        self.updateLiveLogFile(latestlog)
+        self.updateLiveLogFile(log)
+        self.updateLogFile(log)
         
-        
-    def updateLogFile(self, log):      
-        "Add saftey if file not exist"
-        if log:
-            with open(self.filepath, "a") as f:
-                json.dump(log, f)
-                f.write("\n")
-                
-    def updateLiveLogFile(self, log):      
-        "Add saftey if file not exist"
-        if log:
-            with open(self.filepathLiveLog, "w") as f:
-                json.dump(log, f)
-                f.write("\n")
+    
 

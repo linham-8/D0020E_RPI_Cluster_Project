@@ -2,14 +2,17 @@ import psutil
 from logger import Logger
 
 
-class Networklogger(Logger):
-    
-    def collect():
-        net_stats = psutil.net_io_counters()
-        return {
-            "bytes_sent": net_stats.bytes_sent,
-            "bytes_recv": net_stats.bytes_recv,
-            "dropin": net_stats.dropin
-        }
+class MemoryLogger(Logger):
 
-    
+    def __init__(self, filepath, filepathLiveLog):
+        super().__init__(filepath, filepathLiveLog)
+        self.total_memory = psutil.virtual_memory().total 
+
+    def collect(self):
+        memory_stats = psutil.virtual_memory()
+        log = {
+            "memory_used_percent": memory_stats.percent,
+            "memory_used": memory_stats.used
+        }
+        self.updateLiveLogFile(log)
+        self.updateLogFile(log)
