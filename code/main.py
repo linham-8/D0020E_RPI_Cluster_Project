@@ -14,10 +14,15 @@ def main():
     
     model = DataParallelModel(data_loader=data_loader, dist_conf = dist_conf)
     
-    model.train_step()
-    #CPU_logger.collect()
-    #memory_logger.collect()
-    #network_logger.collect()
+    
+    #loop eller kör träning och loggin i två olika trådar, loggern körs på interupts varje sekund
+    
+    while (model.epoch < 5): 
+        model.train_step()
+        #CPU_logger.collect()
+        #memory_logger.collect()
+        #network_logger.collect()
+    
         
     
     
