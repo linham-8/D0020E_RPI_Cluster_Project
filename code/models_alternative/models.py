@@ -4,7 +4,7 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-class BaseModel():
+class BaseModel(ABC):
     def __init__(self, data_loader, dist_config):
         self.device = torch.device("cpu")
         
@@ -47,10 +47,12 @@ class BaseModel():
             batch_x, batch_y = next(self.data_iter)
         except StopIteration:
             self.epoch += 1
-            self.data_iter = iter(self.data_loader)
-            batch_x, batch_y = next(self.data_iter)
+
             if hasattr(self.data_loader.sampler, "set_epoch"):
                 self.data_loader.sampler.set_epoch(self.epoch)
+            
+            self.data_iter = iter(self.data_loader)
+            batch_x, batch_y = next(self.data_iter)
 
         batch_x = batch_x.to(self.device)
         batch_y = batch_y.to(self.device)
