@@ -1,4 +1,5 @@
 let allRuns = [];
+let lastTestCount = -1;
 
 function formatVal(val, key) {
     // Round decimals to two digits
@@ -18,9 +19,9 @@ function formatVal(val, key) {
 async function updateSavedOptions() {
     const modelType = document.getElementById('parallelism').value;
     const savedSelect = document.getElementById('saved');
-    
-    savedSelect.innerHTML = '<option value="no">New Training Run (Default)</option>';
-    
+
+    savedSelect.innerHTML = '<option value="no">Train a new model and then test</option>';
+
     if (!modelType) return;
 
     try {
@@ -30,11 +31,11 @@ async function updateSavedOptions() {
         if (runs && runs.length > 0) {
             const group = document.createElement('optgroup');
             group.label = "Load saved model from:";
-            
+
             runs.forEach(run => {
                 const opt = document.createElement('option');
                 opt.value = run.path;
-                opt.textContent = `${run.timestamp} (Ep: ${run.epochs})`;
+                opt.textContent = `${run.timestamp}`;
                 group.appendChild(opt);
             });
             savedSelect.appendChild(group);
@@ -42,6 +43,21 @@ async function updateSavedOptions() {
     } catch (err) {
         console.error("Error fetching archives:", err);
     }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const pSelect = document.getElementById('parallelism');
+    const mSelect = document.getElementById('model');
+    if (pSelect) pSelect.addEventListener('change', updateSavedOptions);
+    if (mSelect) mSelect.addEventListener('change', updateSavedOptions);
+});
+
+function updateTestRow(selectElem, runIndex) {
+    const testIndex = selectElem.value;
+    const test = allRuns[runIndex].tests[testIndex];
+    document.getElementById(`test-acc-${runIndex}`).textContent = `${formatVal(test.accuracy)}%`;
+    document.getElementById(`test-time-${runIndex}`).textContent = `${formatVal(test.test_time)}s`;
+    document.getElementById(`test-lat-${runIndex}`).textContent = `${formatVal(test.inference_latency_ms || test.latency_per_batch)}ms`;
 }
 
 function showTestsForRun(runIndex) {
@@ -61,7 +77,7 @@ function showTestsForRun(runIndex) {
     }
 
     run.tests.forEach(test => {
-        const timePart = test.timestamp.split(' ')[1]; 
+        const timePart = test.timestamp.split(' ')[1];
         tbody.innerHTML += `
             <tr>
                 <td>${timePart}</td>
@@ -101,23 +117,47 @@ async function refreshLogs() {
         }
 
         const trainBody = document.getElementById('train-body');
-        
+        const testBody = document.getElementById('test-body');
+        const historyTables = document.getElementById('history-tables');
+        const historyLoader = document.getElementById('history-loader');
+
+        const currentTestCount = allRuns.reduce((acc, run) => acc + (run.tests ? run.tests.length : 0), 0);
+
         // Vi uppdaterar bara listan om antalet körningar har ändrats, 
         // annars tappar man markeringen (den blå färgen) när man klickat på en rad.
-        if (trainBody && allRuns && trainBody.children.length !== allRuns.length) {
-            trainBody.innerHTML = allRuns.map((run, index) => `
-                <tr onclick="showTestsForRun(${index})" style="cursor: pointer;">
+        if (trainBody && testBody && allRuns && (trainBody.children.length !== allRuns.length || currentTestCount !== lastTestCount)) {
+
+            if (allRuns.length > 0) {
+                if (historyTables) historyTables.style.display = 'grid';
+                if (historyLoader) historyLoader.style.display = 'none';
+            }
+
+            trainBody.innerHTML = allRuns.map((run) => `
+                <tr>
                     <td>${run.timestamp}</td>
                     <td>${formatVal(run.parallelism_type, 'parallelism_type')}</td>
+                    <td>${run.world_size || 'N/A'}</td>
                     <td>${run.epochs}</td>
-                    <td>${formatVal(run.training_time)}</td>
-                    <td>${formatVal(run.throughput)}</td>
+                    <td>${formatVal(run.training_time)}s</td> <td>${formatVal(run.throughput)}</td>
                 </tr>`).join('');
+            
+            testBody.innerHTML = allRuns.map((run, i) => {
+                if (!run.tests || run.tests.length === 0) {
+                    return `<tr><td colspan="4">No tests available</td></tr>`;
+                }
+                const selectOpts = run.tests.map((t, j) => `<option value="${j}">${t.timestamp.split(' ')[1] || t.timestamp}</option>`).join('');
+                const firstTest = run.tests[0];
+                return `
+                    <tr>
+                        <td><select onchange="updateTestRow(this, ${i})">${selectOpts}</select></td>
+                        <td id="test-acc-${i}" style="font-weight: bold; color: #28a745;">${formatVal(firstTest.accuracy)}%</td>
+                        <td id="test-time-${i}">${formatVal(firstTest.test_time)}s</td> <td id="test-lat-${i}">${formatVal(firstTest.inference_latency_ms || firstTest.latency_per_batch)}ms</td> </tr>`;
+            }).join('');
+
+            lastTestCount = currentTestCount;
         }
 
-    } catch (err) {
-        console.error("Dashboard update failed:", err);
-    }
+    } catch (err) { }
 }
 
 refreshLogs();

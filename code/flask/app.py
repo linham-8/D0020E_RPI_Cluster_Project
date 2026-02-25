@@ -98,7 +98,7 @@ def api_latest():
 @app.route("/api/history")
 def api_history():
     """API route returning the history log"""
-    return jsonify(read_history_log())
+    return jsonify(get_archived_runs(filter_type=None))
 
 @app.route("/api/archives/<model_type>")
 def api_archives(model_type):
@@ -107,4 +107,4 @@ def api_archives(model_type):
     return jsonify(runs)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5004, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
