@@ -175,6 +175,7 @@ button {
 
 table {
     width: 100%;
+    border-collapse: collapse;
     border: 1px solid white;
     margin-top: 10px;
 }

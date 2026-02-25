@@ -51,9 +51,7 @@
                         <div class="input-group">
                             <label for="saved">Use saved data?</label>
                             <select name="saved" id="saved" required>
-                                <option value="">-- Choose --</option>
-                                <option value="yes">Yes</option>
-                                <option value="no">No</option>
+                                <option value="no">Train a new model and then test</option>
                             </select>
                         </div>
                     </div>
@@ -166,23 +164,32 @@
             </div>
 
             <div class="results-display">
-                <table id="history-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Model</th>
-                            <th>Parallelism Type</th>
-                            <th>Accuracy</th>
-                            <th>Training Time</th>
-                            <th>Test Time</th>
-                            <th>Throughput</th>
-                            <th>Latency per Batch</th>
-                            <th>World Size</th>
-                            <th>Epochs</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-body"></tbody>
-                </table>
+                <div class="two-columns" id="history-tables" style="display: none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Parallelism</th>
+                                <th>World Size</th> <th>Epochs</th>
+                                <th>Train Time</th>
+                                <th>Throughput</th>
+                            </tr>
+                        </thead>
+                        <tbody id="train-body"></tbody>
+                    </table>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Test Run</th>
+                                <th>Accuracy</th>
+                                <th>Test Time</th>
+                                <th>Latency</th>
+                            </tr>
+                        </thead>
+                        <tbody id="test-body"></tbody>
+                    </table>
+                </div>
 
                 <div id="history-loader" class="waiting-card">
                     <div class="spinner"></div>
@@ -199,7 +206,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Graph.js --> 
+    <!-- Graph.js -->
     <script src="{{ url_for('static', filename='js/Graphs.js') }}"></script>
 
 </body>

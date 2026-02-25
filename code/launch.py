@@ -2,13 +2,14 @@ import subprocess
 import sys
 import os
 import datetime
-import time
 import shutil
+import json
 
 COMPUTE_NODES = ["pi1", "pi2", "pi3", "pi4"]
 TEMP_DIR = "/scratch/temp"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)).replace("/mnt/usb/scratch", "/scratch", 1)
 MODELS_DIR = os.path.join(BASE_DIR, "models")
+ARCHIVE_DIR = "/scratch/temp/archive"
 
 MODELS = {
     "data_parallel": "data_parallel.py",
@@ -28,7 +29,7 @@ def clean_file(path):
 def zero_file(path):
     """Tömmer en fil utan att ta bort den. Skapar den om den inte finns."""
     try:
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             pass
     except OSError as e:
         print(f"Could not reset {path}: {e}")
@@ -50,18 +51,13 @@ def start_cluster(selected_model, model_path, saved_choice):
 
     print(f"Initiating cluster for: {selected_model}")
 
-    sync_file = os.path.join(TEMP_DIR, f"{selected_model}_sync")
-    clean_file(sync_file)
-
-    live_log_path = os.path.join(TEMP_DIR, "live.log")
-    latest_log_path = os.path.join(TEMP_DIR, "latest.log")
 
     if saved_choice == "no":
-        zero_file(live_log_path)
-        zero_file(latest_log_path)
-
-        run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        archive_dir = os.path.join(TEMP_DIR, "archive", f"{run_id}_{selected_model}")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        archive_dir_name = f"{selected_model}_{timestamp}"
+        archive_dir = os.path.join(ARCHIVE_DIR, archive_dir_name)
+        use_saved_flag = "no"
+        
         try:
             os.makedirs(archive_dir, exist_ok=True)
             print(f"Archive created: {archive_dir}")
@@ -69,8 +65,24 @@ def start_cluster(selected_model, model_path, saved_choice):
             print(f"Could not create archive folder: {e}")
             sys.exit(1)
     else:
-        archive_dir = "None"
-        print(f'Running in test mode (saved="yes"). No archive map was created.')
+        archive_dir = saved_choice
+        use_saved_flag = "yes"
+        if not os.path.isdir(archive_dir):
+            print(f"Archive directory not found: {archive_dir}")
+            sys.exit(1)
+        print(f"Using existing archive: {archive_dir}")
+    
+    sync_file = os.path.join(TEMP_DIR, f"{selected_model}_sync")
+    clean_file(sync_file)
+    
+    live_log_path = os.path.join(TEMP_DIR, "live.log")
+    latest_log_path = os.path.join(TEMP_DIR, "latest.log")
+
+    if saved_choice == "no":
+        zero_file(live_log_path)
+        zero_file(latest_log_path)
+    else:
+        print(f'Running in test mode (saved="yes"). Result saved in test archive.')
 
     print(f"Cleaning old processes")
     subprocess.run(["pkill", "-f", model_filename], check=False)
@@ -103,6 +115,18 @@ def start_cluster(selected_model, model_path, saved_choice):
         exit_code = process_0.wait()
         if exit_code == 0:
             print(f"Finished successfully.")
+            if use_saved_flag == "yes" and os.path.exists(latest_log_path):
+                try:
+                    with open(latest_log_path, 'r') as f:
+                        data = json.load(f)
+                    
+                    if data.get("type") == "test_result":
+                        ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                        dest = os.path.join(archive_dir, f"test_log_{ts}.json")
+                        shutil.copy(latest_log_path, dest)
+                        print(f"Saved unique test log to: {dest}")
+                except Exception as e:
+                    print(f"Warning: Could not save unique test log: {e}")
         else:
             print(f"Finished with errors (Exit code: {exit_code})")
     except KeyboardInterrupt:

@@ -6,6 +6,15 @@ import torch.nn as nn
 import json
 import time
 
+def get_unique_filename(directory, base_name, extension):
+    """Hittar ett unikt filnamn, börjar alltid på _0."""
+    counter = 0
+    while True:
+        file_path = os.path.join(directory, f"{base_name}_{counter}.{extension}")
+        if not os.path.exists(file_path):
+            return file_path
+        counter += 1
+
 def main():
     # Argumenthantering
     try:
@@ -123,8 +132,63 @@ def main():
                 dist.broadcast(torch.tensor([0]), src=0)
 
             end_time = time.time()
+            training_time = end_time - start_time
+
+            run_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")  
+
+            train_dir = None
+            test_dir = None
+            
+            if archive_dir and os.path.isdir(archive_dir):
+                train_dir = os.path.join(archive_dir, "train")
+                test_dir = os.path.join(archive_dir, "test")
+                
+                os.makedirs(train_dir, exist_ok=True)
+                os.makedirs(test_dir, exist_ok=True)
+
+            if use_saved != "yes":
+                torch.save(model.state_dict(), "/scratch/temp/data_parallel_model.pt")
+                if train_dir:
+                    torch.save(model.state_dict(), os.path.join(train_dir, "model.pt"))
+                    
+                total_batches = (len(X) / 64) * 5
+                throughput = (len(X) * 5) / training_time
+                avg_latency = (training_time / total_batches) * 1000
+
+                train_log = {
+                    "type": "training_result",
+                    "parallelism_type": "model_parallel",
+                    "training_time": round(training_time, 2),
+                    "throughput": round(throughput, 2),
+                    "latency_per_batch_ms": round(avg_latency, 2),
+                    "world_size": world_size,
+                    "epochs": 5,
+                    "timestamp": run_timestamp,
+                }
+                
+                print(f"Total Training Time: {training_time:.2f}s")
+
+                try:
+                    with open("/scratch/temp/latest.log", "w") as f:
+                        json.dump(train_log, f)
+                    with open("/scratch/temp/history.log", "a") as f:
+                        json.dump(train_log, f)
+                        f.write("\n")
+
+                    if train_dir:
+                        with open(os.path.join(train_dir, "training.log"), "w") as f:
+                            json.dump(train_log, f)
+                        
+                        with open(os.path.join(archive_dir, "history.log"), "a") as f:
+                            json.dump(train_log, f)
+                            f.write("\n")
+
+                except OSError as e:
+                    print(f"Rank 0: Training logging failed: {e}")
+
 
             dist.broadcast(torch.tensor([2]), src=0)
+
             correct = 0
             total = 0
             test_start = time.time()
@@ -154,44 +218,37 @@ def main():
 
             final_acc = (correct / total) * 100
             print(f"Accuracy: {final_acc:.2f}%")
-            training_time = end_time - start_time
-            print(f"Total Training Time: {training_time:.2f}s")
 
-            if use_saved != "yes":
-                total_images_processed = len(X) * 5
-                throughput = total_images_processed / training_time
-                total_batches = (len(X) / 64) * 5
-                avg_batch_latency = 1000 * (training_time / total_batches)
-            else:
-                throughput = len(Xt) / test_time
-                avg_batch_latency = 1000 * (test_time / (len(Xt) / 64))
+            inference_throughput = len(Xt) / test_time
+            inference_latency = (test_time / (len(Xt) / 64)) * 1000
 
-            log = {
+            test_log = {
+                "type": "test_result",
                 "parallelism_type": "model_parallel",
                 "accuracy": float(final_acc),
-                "training_time": round(training_time, 2),
                 "test_time": round(test_time, 2),
-                "throughput": round(throughput, 2),
-                "latency_per_batch": round(avg_batch_latency, 2),
+                "inference_throughput": round(inference_throughput, 2),
+                "inference_latency_ms": round(inference_latency, 2),
                 "world_size": world_size,
-                "epochs": 5 if use_saved != "yes" else 0,
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": run_timestamp,
             }
 
             try:
                 with open("/scratch/temp/latest.log", "w") as f:
-                    json.dump(log, f)
-
+                    json.dump(test_log, f)
                 with open("/scratch/temp/history.log", "a") as f:
-                    json.dump(log, f)
+                    json.dump(test_log, f)
                     f.write("\n")
 
-                if archive_dir and os.path.isdir(archive_dir):
+                if test_dir:
+                    with open(os.path.join(test_dir, "test.log"), "w") as f:
+                        json.dump(test_log, f)
+                    
                     with open(os.path.join(archive_dir, "history.log"), "a") as f:
-                        json.dump(log, f)
+                        json.dump(test_log, f)
                         f.write("\n")
             except OSError as e:
-                print(f"Rank 0: Final logging failed: {e}")
+                print(f"Rank 0: Test logging failed: {e}")
 
         # Rank 1-4: Compute
         else:
@@ -200,6 +257,8 @@ def main():
 
             if use_saved == "yes":
                 model_path = f"/scratch/temp/model_parallel_rank{rank}_model.pt"
+                if archive_dir and os.path.exists(os.path.join(archive_dir, f"model_parallel_rank{rank}_model.pt")):
+                     model_path = os.path.join(archive_dir, f"model_parallel_rank{rank}_model.pt")
                 if os.path.exists(model_path):
                     model.load_state_dict(torch.load(model_path))
 
