@@ -126,7 +126,10 @@ def start_cluster(selected_model, model_path, saved_choice):
             print(f"Finished with errors (Exit code: {exit_code})")
     except KeyboardInterrupt:
         print(f"Stopping the cluster.")
-        subprocess.run(["python", os.path.join(os.path.dirname(__file__), "stop.py"), selected_model])
+        subprocess.run(
+            ["python", "-m", "src.stop", selected_model],
+            cwd=Config.ROOT_DIR
+        )
 
 if __name__ == "__main__":
     try:
