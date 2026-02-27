@@ -97,7 +97,7 @@ def get_archived_runs(filter_type=None):
                 except:
                     pass
 
-            for f_path in run_folder.glob("test_log_*.json"):
+            for f_path in run_folder.glob("test_log_*.log"):
                 try:
                     with open(f_path, "r") as f:
                         tests.append(json.load(f))

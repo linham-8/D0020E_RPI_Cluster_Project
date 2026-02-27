@@ -91,7 +91,7 @@ def start_cluster(selected_model, model_path, saved_choice):
 
     print(f"Starting head node")
     try:
-        cmd_0 = ["python", "-u", model_path, "0", saved_choice, archive_dir]
+        cmd_0 = ["python", "-u", model_path, "0", use_saved_flag, archive_dir]
         process_0 = subprocess.Popen(cmd_0)
         processes.append(process_0)
     except OSError as e:
@@ -101,7 +101,7 @@ def start_cluster(selected_model, model_path, saved_choice):
     for rank, node in enumerate(COMPUTE_NODES, start=1):
         print(f"Starting {rank} on {node}.")
         try:
-            remote_cmd = f"python -u {model_path} {rank} {saved_choice} {archive_dir}"
+            remote_cmd = f"python -u {model_path} {rank} {use_saved_flag} {archive_dir}"
             ssh_cmd = ["ssh", node, remote_cmd]
             
             p = subprocess.Popen(ssh_cmd)
@@ -122,7 +122,7 @@ def start_cluster(selected_model, model_path, saved_choice):
                     
                     if data.get("type") == "test_result":
                         ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                        dest = os.path.join(archive_dir, f"test_log_{ts}.json")
+                        dest = os.path.join(archive_dir, f"test_log_{ts}.log")
                         shutil.copy(latest_log_path, dest)
                         print(f"Saved unique test log to: {dest}")
                 except Exception as e:

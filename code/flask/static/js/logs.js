@@ -57,35 +57,8 @@ function updateTestRow(selectElem, runIndex) {
     const test = allRuns[runIndex].tests[testIndex];
     document.getElementById(`test-acc-${runIndex}`).textContent = `${formatVal(test.accuracy)}%`;
     document.getElementById(`test-time-${runIndex}`).textContent = `${formatVal(test.test_time)}s`;
-    document.getElementById(`test-lat-${runIndex}`).textContent = `${formatVal(test.inference_latency_ms || test.latency_per_batch)}ms`;
-}
-
-function showTestsForRun(runIndex) {
-    const run = allRuns[runIndex];
-    const tbody = document.getElementById('test-body');
-    tbody.innerHTML = '';
-
-    const rows = document.querySelectorAll('#train-body tr');
-    rows.forEach((r, idx) => {
-        if (idx === runIndex) r.classList.add('selected-row');
-        else r.classList.remove('selected-row');
-    });
-
-    if (!run.tests || run.tests.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4">No tests found for this run.</td></tr>';
-        return;
-    }
-
-    run.tests.forEach(test => {
-        const timePart = test.timestamp.split(' ')[1];
-        tbody.innerHTML += `
-            <tr>
-                <td>${timePart}</td>
-                <td style="font-weight: bold; color: #28a745;">${formatVal(test.accuracy)}%</td>
-                <td>${formatVal(test.test_time)}</td>
-                <td>${formatVal(test.inference_latency_ms)}</td>
-            </tr>`;
-    });
+    const lat = test.inference_latency_ms !== undefined ? test.inference_latency_ms : (test.latency_per_batch_ms || test.latency_per_batch);
+    document.getElementById(`test-lat-${runIndex}`).textContent = `${formatVal(lat)}ms`;
 }
 
 
@@ -138,20 +111,33 @@ async function refreshLogs() {
                     <td>${formatVal(run.parallelism_type, 'parallelism_type')}</td>
                     <td>${run.world_size || 'N/A'}</td>
                     <td>${run.epochs}</td>
-                    <td>${formatVal(run.training_time)}s</td> <td>${formatVal(run.throughput)}</td>
+                    <td>${formatVal(run.training_time)}s</td>
+                    <td>${formatVal(run.throughput)}</td>
                 </tr>`).join('');
-            
+
             testBody.innerHTML = allRuns.map((run, i) => {
                 if (!run.tests || run.tests.length === 0) {
-                    return `<tr><td colspan="4">No tests available</td></tr>`;
+                    return `<tr><td colspan="4" style="text-align:center;">No tests available</td></tr>`;
                 }
-                const selectOpts = run.tests.map((t, j) => `<option value="${j}">${t.timestamp.split(' ')[1] || t.timestamp}</option>`).join('');
+                const selectOpts = run.tests.map((t, j) => {
+                    const timeStr = t.timestamp ? t.timestamp.split(' ')[1] : `Test ${j+1}`;
+                    return `<option value="${j}">${timeStr}</option>`;
+                }).join('');
+
                 const firstTest = run.tests[0];
+                const lat = firstTest.inference_latency_ms !== undefined ? firstTest.inference_latency_ms : (firstTest.latency_per_batch_ms || firstTest.latency_per_batch);
+
                 return `
                     <tr>
-                        <td><select onchange="updateTestRow(this, ${i})">${selectOpts}</select></td>
+                        <td>
+                            <select onchange="updateTestRow(this, ${i})" style="width: 100%; padding: 4px; background: #1a1d24; color: white; border: 1px solid white; border-radius: 4px;">
+                                ${selectOpts}
+                            </select>
+                        </td>
                         <td id="test-acc-${i}" style="font-weight: bold; color: #28a745;">${formatVal(firstTest.accuracy)}%</td>
-                        <td id="test-time-${i}">${formatVal(firstTest.test_time)}s</td> <td id="test-lat-${i}">${formatVal(firstTest.inference_latency_ms || firstTest.latency_per_batch)}ms</td> </tr>`;
+                        <td id="test-time-${i}">${formatVal(firstTest.test_time)}s</td> 
+                        <td id="test-lat-${i}">${formatVal(lat)}ms</td> 
+                    </tr>`;
             }).join('');
 
             lastTestCount = currentTestCount;

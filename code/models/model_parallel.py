@@ -145,11 +145,6 @@ def main():
                 
                 os.makedirs(train_dir, exist_ok=True)
                 os.makedirs(test_dir, exist_ok=True)
-
-            if use_saved != "yes":
-                torch.save(model.state_dict(), "/scratch/temp/data_parallel_model.pt")
-                if train_dir:
-                    torch.save(model.state_dict(), os.path.join(train_dir, "model.pt"))
                     
                 total_batches = (len(X) / 64) * 5
                 throughput = (len(X) * 5) / training_time
@@ -171,17 +166,12 @@ def main():
                 try:
                     with open("/scratch/temp/latest.log", "w") as f:
                         json.dump(train_log, f)
-                    with open("/scratch/temp/history.log", "a") as f:
-                        json.dump(train_log, f)
-                        f.write("\n")
+
 
                     if train_dir:
                         with open(os.path.join(train_dir, "training.log"), "w") as f:
                             json.dump(train_log, f)
                         
-                        with open(os.path.join(archive_dir, "history.log"), "a") as f:
-                            json.dump(train_log, f)
-                            f.write("\n")
 
                 except OSError as e:
                     print(f"Rank 0: Training logging failed: {e}")
@@ -234,19 +224,23 @@ def main():
             }
 
             try:
-                with open("/scratch/temp/latest.log", "w") as f:
-                    json.dump(test_log, f)
-                with open("/scratch/temp/history.log", "a") as f:
-                    json.dump(test_log, f)
-                    f.write("\n")
+                if os.path.exists("/scratch/temp/latest.log"):
+                    with open("/scratch/temp/latest.log", "r") as f:
+                        try:
+                            merged_log = json.load(f)
+                        except json.JSONDecodeError:
+                            merged_log = {}
+                    merged_log.update(test_log)
+                else:
+                    merged_log = test_log
 
-                if test_dir:
+                with open("/scratch/temp/latest.log", "w") as f:
+                    json.dump(merged_log, f)
+
+                if test_dir and use_saved != "yes":
                     with open(os.path.join(test_dir, "test.log"), "w") as f:
                         json.dump(test_log, f)
                     
-                    with open(os.path.join(archive_dir, "history.log"), "a") as f:
-                        json.dump(test_log, f)
-                        f.write("\n")
             except OSError as e:
                 print(f"Rank 0: Test logging failed: {e}")
 
@@ -257,8 +251,6 @@ def main():
 
             if use_saved == "yes":
                 model_path = f"/scratch/temp/model_parallel_rank{rank}_model.pt"
-                if archive_dir and os.path.exists(os.path.join(archive_dir, f"model_parallel_rank{rank}_model.pt")):
-                     model_path = os.path.join(archive_dir, f"model_parallel_rank{rank}_model.pt")
                 if os.path.exists(model_path):
                     model.load_state_dict(torch.load(model_path))
 
@@ -298,9 +290,7 @@ def main():
                     loss.backward()
                     opt.step()
 
-                torch.save(
-                    model.state_dict(), f"/scratch/temp/model_parallel_rank{rank}_model.pt"
-                )
+
                 if archive_dir and os.path.isdir(archive_dir):
                     torch.save(
                         model.state_dict(),
