@@ -257,7 +257,7 @@ def main():
             opt = torch.optim.SGD(model.parameters(), lr=0.01)
 
             if use_saved == "yes":
-                model_path = os.path.join(archive_dir, f"pipeline_parallel{rank}_model.pt")
+                model_path = os.path.join(archive_dir, f"pipeline_parallel_rank{rank}_model.pt")
                 if os.path.exists(model_path):
                     model.load_state_dict(torch.load(model_path))
 
