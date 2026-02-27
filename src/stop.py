@@ -1,9 +1,7 @@
 import subprocess
 import sys
 import os
-
-COMPUTE_NODES = ["pi1", "pi2", "pi3", "pi4"]
-TEMP_DIR = "/scratch/temp"
+from config import Config
 
 MODELS = {
     "data_parallel": "data_parallel.py",
@@ -40,13 +38,13 @@ def stop_cluster(selected_model):
     kill_process(model_filename)
     kill_process("launch.py")
 
-    for node in COMPUTE_NODES:
+    for node in Config.COMPUTE_NODES:
         kill_process(model_filename, node)
             
     print(f"Cleaning temporary files.")
-    safe_remove(os.path.join(TEMP_DIR, f"{selected_model}_sync"))
-    safe_remove(os.path.join(TEMP_DIR, "live.log"))
-    safe_remove(os.path.join(TEMP_DIR, "latest.log"))
+    safe_remove(os.path.join(Config.TEMP_DIR, f"{selected_model}_sync"))
+    safe_remove(os.path.join(Config.TEMP_DIR, "live.log"))
+    safe_remove(os.path.join(Config.TEMP_DIR, "latest.log"))
     
     print(f"Done.")
 
@@ -56,19 +54,19 @@ def stop_session():
     
     for model_file in MODELS.values():
         kill_process(model_file)
-        for node in COMPUTE_NODES:
+        for node in Config.COMPUTE_NODES:
             kill_process(model_file, node)
 
     kill_process("launch.py")
     
     print(f"Cleaning all logs and sync files.")
     
-    safe_remove(os.path.join(TEMP_DIR, "live.log"))
-    safe_remove(os.path.join(TEMP_DIR, "latest.log"))
-    safe_remove(os.path.join(TEMP_DIR, "history.log"))
+    safe_remove(os.path.join(Config.TEMP_DIR, "live.log"))
+    safe_remove(os.path.join(Config.TEMP_DIR, "latest.log"))
+    safe_remove(os.path.join(Config.TEMP_DIR, "history.log"))
     
     for model in MODELS:
-        safe_remove(os.path.join(TEMP_DIR, f"{model}_sync"))
+        safe_remove(os.path.join(Config.TEMP_DIR, f"{model}_sync"))
         
     print(f"Session cleared.")
 

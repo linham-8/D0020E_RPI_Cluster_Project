@@ -1,16 +1,13 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
-from utils.log_reader import read_latest_log, read_history_log, get_archived_runs
+from .utils.log_reader import read_latest_log, read_history_log, get_archived_runs
 import subprocess
 import os
 import signal
+from config import Config
 
 app = Flask(__name__)
 active_tasks = {}
 has_data = False
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CODE_DIR = os.path.dirname(BASE_DIR)
-launch_script = os.path.join(CODE_DIR, "launch.py")
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -25,7 +22,10 @@ def index():
             print(
                 f"Starting training: Model={model}, Parallelism={parallelism}, Saved={saved}"
             )
-            proc = subprocess.Popen(["python", launch_script, parallelism, saved])
+            proc = subprocess.Popen(
+                ["python", "-m", "src.launch", parallelism, saved],
+                cwd=Config.ROOT_DIR
+            )
 
             active_tasks["training"] = proc.pid
             print(f"Started training with PID {proc.pid}")
@@ -105,6 +105,3 @@ def api_archives(model_type):
     """Api route returing the archived log"""
     runs = get_archived_runs(filter_type=model_type)
     return jsonify(runs)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)

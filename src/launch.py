@@ -4,12 +4,7 @@ import os
 import datetime
 import shutil
 import json
-
-COMPUTE_NODES = ["pi1", "pi2", "pi3", "pi4"]
-TEMP_DIR = "/scratch/temp"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)).replace("/mnt/usb/scratch", "/scratch", 1)
-MODELS_DIR = os.path.join(BASE_DIR, "models")
-ARCHIVE_DIR = "/scratch/temp/archive"
+from config import Config
 
 MODELS = {
     "data_parallel": "data_parallel.py",
@@ -55,7 +50,7 @@ def start_cluster(selected_model, model_path, saved_choice):
     if saved_choice == "no":
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         archive_dir_name = f"{selected_model}_{timestamp}"
-        archive_dir = os.path.join(ARCHIVE_DIR, archive_dir_name)
+        archive_dir = os.path.join(Config.ARCHIVE_DIR, archive_dir_name)
         use_saved_flag = "no"
         
         try:
@@ -72,11 +67,11 @@ def start_cluster(selected_model, model_path, saved_choice):
             sys.exit(1)
         print(f"Using existing archive: {archive_dir}")
     
-    sync_file = os.path.join(TEMP_DIR, f"{selected_model}_sync")
+    sync_file = os.path.join(Config.TEMP_DIR, f"{selected_model}_sync")
     clean_file(sync_file)
     
-    live_log_path = os.path.join(TEMP_DIR, "live.log")
-    latest_log_path = os.path.join(TEMP_DIR, "latest.log")
+    live_log_path = os.path.join(Config.TEMP_DIR, "live.log")
+    latest_log_path = os.path.join(Config.TEMP_DIR, "latest.log")
 
     if saved_choice == "no":
         zero_file(live_log_path)
@@ -86,7 +81,7 @@ def start_cluster(selected_model, model_path, saved_choice):
 
     print(f"Cleaning old processes")
     subprocess.run(["pkill", "-f", model_filename], check=False)
-    for node in COMPUTE_NODES:
+    for node in Config.COMPUTE_NODES:
         kill_remote_process(node, model_filename)
 
     print(f"Starting head node")
@@ -98,7 +93,7 @@ def start_cluster(selected_model, model_path, saved_choice):
         print(f"Could not start head node: {e}")
         sys.exit(1)
 
-    for rank, node in enumerate(COMPUTE_NODES, start=1):
+    for rank, node in enumerate(Config.COMPUTE_NODES, start=1):
         print(f"Starting {rank} on {node}.")
         try:
             remote_cmd = f"python -u {model_path} {rank} {saved_choice} {archive_dir}"
@@ -144,7 +139,7 @@ if __name__ == "__main__":
         saved_choice = sys.argv[2] if len(sys.argv) > 2 else "no"
 
         if selected_model in MODELS:
-            final_path = os.path.join(MODELS_DIR, MODELS[selected_model])
+            final_path = os.path.join(Config.MODELS_DIR, MODELS[selected_model])
             if not os.path.exists(final_path):
                 print(f"File: {final_path} not found.")
                 sys.exit(1)

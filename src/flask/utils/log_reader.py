@@ -1,10 +1,7 @@
 import json
 import os
 from pathlib import Path
-
-TEMP_DIR = "/scratch/temp"
-ARCHIVE_DIR = Path("/scratch/temp/archive")
-
+from config import Config
 
 def read_latest_log():
     """Reads the newest log file from /scratch/temp and returns its data."""
@@ -62,10 +59,10 @@ def get_archived_runs(filter_type=None):
     """Läser igenom archive-mappen och returnerar lista med träningsrundor
     och deras tillhörande test-resultat."""
     runs = []
-    if not ARCHIVE_DIR.exists():
+    if not Config.ARCHIVE_DIR.exists():
         return []
 
-    for run_folder in ARCHIVE_DIR.iterdir():
+    for run_folder in Config.ARCHIVE_DIR.iterdir():
         if not run_folder.is_dir():
             continue
 
