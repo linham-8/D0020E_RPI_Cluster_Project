@@ -4,12 +4,12 @@ import time
 
 class NetworkLogger(Logger):
     
-    def __init__(self, filepath, filepathLiveLog):
+    def __init__(self, filepath: str, filepathLiveLog: str):
         super().__init__(filepath,filepathLiveLog)
         self.prev_bytes_recv = max(0, psutil.net_io_counters().bytes_recv) #Maybe not needed
         self.prev_time = time.time()   
     
-    def collect(self):
+    def collect(self) -> None:
         net_stats = psutil.net_io_counters()
         #latency = latency(net_stats.bytes_sent, net_stats.bytes_recv)
         bytes_per_second = self.bytesRecvPerSecond(net_stats.bytes_recv)
@@ -28,7 +28,7 @@ class NetworkLogger(Logger):
         self.updateLiveLogFile(log)
         self.updateLogFile(log)
  
-    def bytesRecvPerSecond(self, bytes_recv) -> int:
+    def bytesRecvPerSecond(self, bytes_recv: int) -> int:
         if self.prev_bytes_recv is not None: #Maybe not needed since the raspberry pi will recv other bytes on startup it should not be 0 or None
             current_time = time.time()
             bytes_per_second = int((bytes_recv - self.prev_bytes_recv) / (current_time - self.prev_time)) #Protection against division by 0 may be needed
