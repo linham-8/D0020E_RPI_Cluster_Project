@@ -57,8 +57,12 @@
                     </div>
 
                     <div class="buttons">
-                        <button name="action" value="start" class="btn-start">Start</button>
-                        <button name="action" value="stop" class="btn-stop">Stop</button>
+                        <button name="action" value="start" class="btn-start">Start training</button>
+                    </div>
+                </form>
+                <form class="stop-area" method="post">
+                    <div class="buttons">
+                        <button name="action" value="stop" class="btn-stop">Stop training</button>
                     </div>
                 </form>
             </section>
@@ -170,7 +174,8 @@
                             <tr>
                                 <th>Timestamp</th>
                                 <th>Parallelism</th>
-                                <th>World Size</th> <th>Epochs</th>
+                                <th>World Size</th>
+                                <th>Epochs</th>
                                 <th>Train Time</th>
                                 <th>Throughput</th>
                             </tr>

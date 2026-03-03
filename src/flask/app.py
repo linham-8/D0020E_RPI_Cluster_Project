@@ -3,6 +3,7 @@ from .utils.log_reader import read_latest_log, read_history_log, get_archived_ru
 import subprocess
 import os
 import signal
+import psutil
 from config import Config
 
 app = Flask(__name__)
@@ -23,22 +24,21 @@ def index():
                 f"Starting training: Model={model}, Parallelism={parallelism}, Saved={saved}"
             )
             proc = subprocess.Popen(
-                ["python", "-m", "src.launch", parallelism, saved],
-                cwd=Config.ROOT_DIR
-            )
+                ["python", "-m", "src.launch", parallelism, saved], cwd=Config.ROOT_DIR)
 
-            active_tasks["training"] = proc.pid
+            active_tasks["training"] = {"pid": proc.pid, "parallelism": parallelism}
             print(f"Started training with PID {proc.pid}")
             return redirect(url_for("index"))
 
         elif action == "stop":
-            pid = active_tasks.get("training")
-            if pid:
-                try:
-                    os.killpg(os.getpgid(pid), signal.SIGTERM)
-                    active_tasks.pop("training", None)
-                except ProcessLookupError:
-                    pass
+            task_info = active_tasks.get("training")
+            if task_info:
+                parallelism = task_info["parallelism"]
+
+                print(f"Running stop script for: {parallelism}")
+                subprocess.run(["python", "-m", "src.stop", parallelism], cwd=Config.ROOT_DIR)
+
+                active_tasks.pop("training", None)
             return redirect(url_for("index"))
 
         elif action == "clear-latest":
@@ -67,6 +67,7 @@ def api_docs():
     <ul>
         <li><a href="/api/status">Status</a></li>
         <li><a href="/api/latest">Latest Log</a></li>
+        <li><a href="/api/live">Live Log</a></li>
         <li><a href="/api/history">History log</a></li>
     </ul>
     """
@@ -86,14 +87,24 @@ def api_stop():
 @app.route("/api/status")
 def api_status():
     """API route returning training status"""
-    pid = active_tasks.get("training")
-    status = "running" if pid else "stopped"
+    task_info = active_tasks.get("training")
+    if task_info and is_process_running(task_info["pid"]):
+        status = "running"
+    else:
+        active_tasks.pop("training", None)
+        status = "stopped"
+        
     return jsonify({"status": status})
 
 @app.route("/api/latest")
 def api_latest():
     """API route returning the latest log"""
     return jsonify(read_latest_log())
+
+#@app.route("/api/live")
+#def api_latest():
+#    """API route returning the live log"""
+#    return jsonify(read_latest_log())
 
 @app.route("/api/history")
 def api_history():
@@ -105,3 +116,11 @@ def api_archives(model_type):
     """Api route returing the archived log"""
     runs = get_archived_runs(filter_type=model_type)
     return jsonify(runs)
+
+# Status helper
+def is_process_running(pid):
+    try:
+        process = psutil.Process(pid)
+        return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        return False
