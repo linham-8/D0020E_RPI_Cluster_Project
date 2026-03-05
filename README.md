@@ -24,6 +24,6 @@ The primary goals of the project are:
 Instructions on how to setup the cluster can be found [here](instructions.md).
 
 ## Requirements and dependencies
-All of the used dependecies and versions can be found [here](requirements.md).
+All of the used dependecies and versions can be found [here](requirements.txt).
 To download the dependencies, run:
 ```pip install -r requirements.txt```
