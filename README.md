@@ -19,7 +19,7 @@ The primary goals of the project are:
 - Document the implementation process, challenges, and insights from the experiments
 
 ## Cluster setup
-Instructions on how to setup the cluster can be found [here](.instructions.md)
+Instructions on how to setup the cluster can be found [here](instructions.md)
 
 ## Requirements and dependencies
 - Python >= 3.13
