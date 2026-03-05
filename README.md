@@ -27,3 +27,8 @@ Instructions on how to setup the cluster can be found [here](instructions.md).
 All of the used dependecies and versions can be found [here](requirements.txt).
 To download the dependencies, run:
 ```pip install -r requirements.txt```
+
+## Config
+The config file is used to set paths, names of nodes and other variables used across the project files to simplify usage and make the project easily adaptible to any system.
+
+After installing the required dependencies and filling in the config files, start the application by running main.py.
