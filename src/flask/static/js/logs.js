@@ -50,6 +50,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const mSelect = document.getElementById('model');
     if (pSelect) pSelect.addEventListener('change', updateSavedOptions);
     if (mSelect) mSelect.addEventListener('change', updateSavedOptions);
+
+    const btnClearLatest = document.getElementById('btn-clear-latest');
+    const btnClearHistory = document.getElementById('btn-clear-history');
+    if (btnClearLatest) btnClearLatest.addEventListener('click', () => clearLog('latest'));
+    if (btnClearHistory) btnClearHistory.addEventListener('click', () => clearLog('history'));
 });
 
 function updateTestRow(selectElem, runIndex) {
@@ -140,7 +145,7 @@ async function refreshLogs() {
                     <td>${run.epochs}</td>
                     <td>${formatVal(run.training_time)}s</td> <td>${formatVal(run.throughput)}</td>
                 </tr>`).join('');
-            
+
             testBody.innerHTML = allRuns.map((run, i) => {
                 if (!run.tests || run.tests.length === 0) {
                     return `<tr><td colspan="4">No tests available</td></tr>`;
@@ -160,5 +165,22 @@ async function refreshLogs() {
     } catch (err) { }
 }
 
+async function clearLog(target) {
+    await fetch('/api/logs/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target })
+    });
+
+    if (target === 'latest') {
+        document.getElementById('latest-card').style.display = 'none';
+        document.getElementById('latest-loader').style.display = 'block';
+    } else if (target === 'history') {
+        document.getElementById('history-tables').style.display = 'none';
+        document.getElementById('history-loader').style.display = 'block';
+    }
+
+    refreshLogs();
+}
+
 refreshLogs();
-setInterval(refreshLogs, 5000);

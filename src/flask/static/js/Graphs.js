@@ -6,7 +6,7 @@
         try {
             const d = new Date(ts);
             if (!isNaN(d.getTime())) return d.toLocaleString();
-        } catch (e) {}
+        } catch (e) { }
         return ts;
     }
 
@@ -41,7 +41,7 @@
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 let v = context.formattedValue;
                                 return isPercent ? `${v} %` : v;
                             }
@@ -73,7 +73,7 @@
             const labels = history.map((h, i) => {
                 if (h.parallelism_type) return h.parallelism_type;
                 if (h.timestamp) return formatTimestamp(h.timestamp);
-                return `Run ${i+1}`;
+                return `Run ${i + 1}`;
             });
             const data = history.map(h => {
                 const v = parseFloat(h[selectedMetric]);
@@ -110,7 +110,7 @@
                 chart.data.labels = labels;
                 chart.data.datasets[0].data = data;
                 chart.data.datasets[0].label = displayLabel;
-                chart.options.plugins.tooltip.callbacks.label = function(context) {
+                chart.options.plugins.tooltip.callbacks.label = function (context) {
                     let v = context.formattedValue;
                     return isPercent ? `${v} %` : v;
                 };
@@ -132,6 +132,5 @@
     // Initial render and periodic refresh
     document.addEventListener('DOMContentLoaded', () => {
         refreshChart();
-        setInterval(refreshChart, 2000);
     });
 })();

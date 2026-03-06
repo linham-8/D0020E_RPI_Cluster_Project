@@ -3,58 +3,15 @@ from .utils.log_reader import read_latest_log, read_history_log, get_archived_ru
 import subprocess
 import os
 import signal
-import psutil
 from config import Config
 
 app = Flask(__name__)
 active_tasks = {}
 has_data = False
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/")
 def index():
     """Main page route used to start and stop training, and view results and graphs"""
-    if request.method == "POST":
-        action = request.form["action"]
-        if action == "start":
-            model = request.form["model"]
-            parallelism = request.form["parallelism"]
-            saved = request.form["saved"]
-
-            print(
-                f"Starting training: Model={model}, Parallelism={parallelism}, Saved={saved}"
-            )
-            proc = subprocess.Popen(
-                ["python", "-m", "src.launch", parallelism, saved], cwd=Config.ROOT_DIR)
-
-            active_tasks["training"] = {"pid": proc.pid, "parallelism": parallelism}
-            print(f"Started training with PID {proc.pid}")
-            return redirect(url_for("index"))
-
-        elif action == "stop":
-            task_info = active_tasks.get("training")
-            if task_info:
-                parallelism = task_info["parallelism"]
-
-                print(f"Running stop script for: {parallelism}")
-                subprocess.run(["python", "-m", "src.stop", parallelism], cwd=Config.ROOT_DIR)
-
-                active_tasks.pop("training", None)
-            return redirect(url_for("index"))
-
-        elif action == "clear-latest":
-            try:
-                os.remove("/scratch/temp/latest.log")
-            except FileNotFoundError:
-                pass
-            return redirect(url_for("index"))
-        
-        elif action == "clear-history":
-            try:
-                os.remove("/scratch/temp/history.log")
-            except FileNotFoundError:
-                pass
-            return redirect(url_for("index"))
-
     return render_template("index.html")
 
 @app.route("/api/docs")
@@ -65,36 +22,112 @@ def api_docs():
         <a href="/">Back to main page</a>
     </h2>
     <ul>
-        <li><a href="/api/status">Status</a></li>
+        <li><a href="/api/training/status">Status</a></li>
         <li><a href="/api/latest">Latest Log</a></li>
         <li><a href="/api/live">Live Log</a></li>
         <li><a href="/api/history">History log</a></li>
     </ul>
     """
 
-@app.route("/api/start", methods=["POST"])
+@app.route("/api/training/start", methods=["POST"])
 def api_start():
     """API route used to start training"""
-    # Start logic here
-    return jsonify({"status": "started"})
+    data = request.get_json() or {}
+    if "training" in active_tasks:
+        pid = active_tasks["training"]["pid"]
+        if is_process_running(pid):
+            return jsonify({"status": "error", "message": "Training already in progress"}), 400
+        else:
+            active_tasks.pop("training")
 
-@app.route("/api/stop", methods=["POST"])
+    model = data.get("model")
+    parallelism = data.get("parallelism")
+    saved = data.get("saved")
+
+    log_path = Config.LATEST_LOG
+    try:
+        os.remove(log_path)
+    except FileNotFoundError:
+        pass
+
+    try:
+        proc = subprocess.Popen(
+                ["python", "-m", "src.launch", parallelism, saved], cwd=Config.ROOT_DIR)
+        
+        active_tasks["training"] = {
+            "proc": proc,
+            "pid": proc.pid,
+            "parallelism": parallelism,
+            "model": model
+        }
+        
+        return jsonify({
+            "status": "success",
+            "pid": proc.pid,
+            "message": f"Started {parallelism} training."
+        }), 202
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/training/stop", methods=["POST"])
 def api_stop():
     """API route used to stop training"""
-    ## Stop logic here
-    return jsonify({"status": "stopped"})
+    task_info = active_tasks.get("training")
+    
+    if not task_info:
+        return jsonify({"status": "error", "message": "No active task found"}), 404
 
-@app.route("/api/status")
+    try:
+        subprocess.run(
+            ["python", "-m", "src.stop", task_info["parallelism"]], cwd=Config.ROOT_DIR)
+            
+        active_tasks.pop("training")
+        return jsonify({"status": "success", "message": "Training stopped"})
+    
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/training/status", methods=["GET"])
 def api_status():
     """API route returning training status"""
-    task_info = active_tasks.get("training")
-    if task_info and is_process_running(task_info["pid"]):
-        status = "running"
-    else:
-        active_tasks.pop("training", None)
-        status = "stopped"
+    
+    if is_process_running():
+        task_data = active_tasks["training"]
+        details = {
+            "pid": task_data.get("pid"),
+            "parallelism": task_data.get("parallelism"),
+            "model": task_data.get("model")
+        }
         
-    return jsonify({"status": status})
+        return jsonify({
+            "active": True,
+            "details": details
+        })
+    
+    active_tasks.pop("training", None)
+    return jsonify({"active": False})
+
+@app.route("/api/logs/clear", methods=["POST"]) # TODO delete correct history file/dir
+def api_clear_logs():
+    """API route used to delete log files"""
+    data = request.get_json() or {}
+    target = data.get("target")
+    
+    paths = {
+        "latest": Config.LATEST_LOG,
+        "history": Config.HISTORY_LOG
+    }
+    
+    if target not in paths:
+        return jsonify({"status": "error", "message": "Invalid target"}), 400
+    
+    try:
+        os.remove(paths[target])
+    except FileNotFoundError:
+        pass
+    
+    return jsonify({"status": "success"})
 
 @app.route("/api/latest")
 def api_latest():
@@ -118,9 +151,16 @@ def api_archives(model_type):
     return jsonify(runs)
 
 # Status helper
-def is_process_running(pid):
-    try:
-        process = psutil.Process(pid)
-        return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+def is_process_running():
+    """Checks the stored 'proc' object to see if training is still alive."""
+    task = active_tasks.get("training")
+    
+    if not task or "proc" not in task:
         return False
+
+    proc = task["proc"]
+    
+    if proc.poll() is None:
+        return True
+    
+    return False
