@@ -124,30 +124,17 @@
             </section>
         </div>
 
-        <!-- Graph section -->
+        <!-- Graph section with tiling manager -->
         <section class="graph-section">
             <div class="title-bar">
-                <h2>History Graph</h2>
-                <div class="controls">
-                    <label for="metric-select">Metric:</label>
-                    <select id="metric-select">
-                        <option value="accuracy" selected>Accuracy</option>
-                        <option value="training_time">Training Time</option>
-                        <option value="test_time">Test Time</option>
-                        <option value="throughput">Throughput</option>
-                        <option value="latency_per_batch">Latency</option>
-                        <option value="epochs">Epochs</option>
-                    </select>
+                <h2>History Graphs</h2>
+                <div class="buttons">
+                    <button type="button" id="add-tile" class="btn-start">Add graph</button>
                 </div>
             </div>
 
-            <div class="graph-container">
-                <canvas id="history-chart" style="display: none;"></canvas>
-
-                <div id="graph-loader" class="waiting-card">
-                    <div class="spinner"></div>
-                    <p>Waiting for history data...</p>
-                </div>
+            <div id="graph-tiles" class="graph-tiles">
+                <!-- tiles will be injected here by Graphs.js -->
             </div>
         </section>
 
