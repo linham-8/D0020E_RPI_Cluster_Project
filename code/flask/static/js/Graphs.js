@@ -71,12 +71,23 @@
 
             // Prefer showing the parallelism type on the x-axis; fall back to timestamp/run number
             const labels = history.map((h, i) => {
-                if (h.parallelism_type) return h.parallelism_type;
-                if (h.timestamp) return formatTimestamp(h.timestamp);
-                return `Run ${i+1}`;
+                let name = h.parallelism_type ? h.parallelism_type.replace(/_/g, ' ') : `Run ${i+1}`;
+                let time = h.timestamp ? h.timestamp.split(' ')[1] : '';
+                return `${name}\n${time}`;
             });
             const data = history.map(h => {
-                const v = parseFloat(h[selectedMetric]);
+                let val = null;
+
+                if (h[selectedMetric] !== undefined) {
+                    val = h[selectedMetric];
+                }
+                else if (h.tests && h.tests.length > 0) {
+                    if (h.tests[0][selectedMetric] !== undefined) {
+                        val = h.tests[0][selectedMetric];
+                    }
+                }
+
+                const v = parseFloat(val);
                 return Number.isFinite(v) ? v : null;
             });
 
@@ -100,7 +111,7 @@
                 'throughput': 'Throughput',
                 'training_time': 'Training time (s)',
                 'test_time': 'Test time (s)',
-                'latency_per_batch': 'Latency per batch (ms)',
+                'latency_per_batch_ms': 'Latency per batch (ms)',
                 'epochs': 'Epochs'
             };
             const isPercent = selectedMetric === 'accuracy';

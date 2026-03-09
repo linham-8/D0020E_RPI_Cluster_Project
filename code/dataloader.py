@@ -1,5 +1,7 @@
+import os
 from torch.utils.data import DataLoader
-from datasets import * 
+from torch.utils.data.distributed import DistributedSampler
+import datasets
 
 """
     TODO Add docstrings
@@ -9,33 +11,33 @@ from datasets import *
 def training_dataset_selector(dataset:str):
     """
     Docstring for training_dataset_selector
-    
+
     :param dataset: Dataset to be used(EMNIST or FashionMNIST)
     :type dataset: str
-    """ 
+    """
     match dataset:
         case "EMNIST":
-            return get_EMNIST_training_data()    
+            return datasets.get_EMNIST_training_data()
         case "FashionMNIST":
-            return get_FashionMNIST_training_data()
+            return datasets.get_FashionMNIST_training_data()
         case _:
-            print("Dataset not avaiable:(")
-            
+            print("Dataset not available :(")
+
 
 def test_dataset_selector(dataset:str):
     match dataset:
         case "EMNIST":
-            return get_EMNIST_test_data()
-        case "FasionMNIST":
-            return get_FashionMNIST_test_data()
+            return datasets.get_EMNIST_test_data()
+        case "FashionMNIST":
+            return datasets.get_FashionMNIST_test_data()
         case _:
-            print("Dataset not avaiable:(")
+            print("Dataset not available :(")
 
 
-def get_data(training:bool, dataset:str, batch_size:int, shuffle:bool) -> DataLoader:
+def get_data(training:bool, dataset:str, batch_size:int, shuffle:bool=True, world_size:int=1, rank:int=0) -> DataLoader:
     """
     Docstring for get_data
-    
+
     :param training: if used for training set True
     :type training: bool
     :param dataset: Dataset to use(EMNIST or FashionMNIST)
@@ -44,19 +46,23 @@ def get_data(training:bool, dataset:str, batch_size:int, shuffle:bool) -> DataLo
     :type batch_size: int
     :param shuffle: Shuffle on or off
     :type shuffle: bool
+    :param world_size: Number of nodes in cluster
+    :type world_size: int
+    :param rank: Node ID
+    :type rank: int
     """
+
     if training:
-        training_data = training_dataset_selector(dataset)
-        return DataLoader(training_data, batch_size, shuffle) 
+        if dataset == "EMNIST":
+            data_obj = datasets.get_EMNIST_training_data()
+        else:
+            return None
+
+        if world_size > 1:
+            sampler = DistributedSampler(data_obj, num_replicas=world_size, rank=rank, shuffle=shuffle)
+            return DataLoader(data_obj, batch_size=batch_size, sampler=sampler, num_workers=0)
+        else:
+            return DataLoader(data_obj, batch_size=batch_size, shuffle=shuffle, num_workers=0)
     else:
-        test_data = test_dataset_selector(dataset)
-        return DataLoader(test_data, batch_size, shuffle)
-             
-    
-
-
-
-            
-        
-    
-    
+        data_obj = datasets.get_EMNIST_test_data()
+        return DataLoader(data_obj, batch_size=batch_size, shuffle=False, num_workers=0)
