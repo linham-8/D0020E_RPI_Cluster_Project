@@ -54,6 +54,16 @@
                                 <option value="no">Train a new model and then test</option>
                             </select>
                         </div>
+
+                        <div class="input-group">
+                            <label for="time_limit">Time limit (minutes):</label>
+                            <input type="number" name="time_limit" id="time_limit" min="0" value="0" style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
+                        </div>
+
+                        <div class="input-group">
+                            <label for="custom_name">Benchmark Name (optional):</label>
+                            <input type="text" name="custom_name" id="custom_name" placeholder="Leave empty for default" style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
+                        </div>
                     </div>
 
                     <div class="buttons">
@@ -75,40 +85,83 @@
                     </form>
                 </div>
 
-                <div class="meta">
-                    Model: <span data-key="model">{{ model or 'SVM' }}</span> |
-                    Type: <span data-key="parallelism_type">{{ parallelism_type or 'N/A' }}</span>
+                <div class="meta" style="display: flex; justify-content: space-between;">
+                    <div>
+                        Model: <span data-key="model">{{ model or 'SVM' }}</span> |
+                        Type: <span data-key="parallelism_type">{{ parallelism_type or 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <label for="view-mode-select">View: </label>
+                        <select id="view-mode-select" onchange="changeViewMode(this.value)" style="padding: 2px; width: auto;">
+                            <option value="training">Training Data</option>
+                            <option value="cpu">CPU Usage</option>
+                            <option value="mem">Memory</option>
+                            <option value="net">Network</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="metrics-container">
                     <div id="latest-card" class="metric-card" style="display: none;">
-                        <div class="metric">
+                        <div class="metric training-metric">
                             <span class="title">Accuracy:</span>
                             <span class="value" data-key="accuracy"></span> %
                         </div>
-                        <div class="metric">
+                        <div class="metric training-metric">
                             <span class="title">Training time:</span>
                             <span class="value" data-key="training_time"></span>s
                         </div>
-                        <div class="metric">
+                        <div class="metric training-metric">
                             <span class="title">Test time:</span>
                             <span class="value" data-key="test_time"></span>s
                         </div>
-                        <div class="metric">
-                            <span class="title">Throughput:</span>
+                        <div class="metric training-metric">
+                            <span class="title">Train Throughput:</span>
                             <span class="value" data-key="throughput"></span>
                         </div>
-                        <div class="metric">
-                            <span class="title">Latency:</span>
-                            <span class="value" data-key="latency_per_batch"></span>ms
+                        <div class="metric training-metric">
+                            <span class="title">Train Latency:</span>
+                            <span class="value" data-key="latency_per_batch_ms"></span>ms
                         </div>
-                        <div class="metric">
+                        <div class="metric training-metric">
+                            <span class="title">Inf. Throughput:</span>
+                            <span class="value" data-key="inference_throughput"></span>
+                        </div>
+                        <div class="metric training-metric">
+                            <span class="title">Inf. Latency:</span>
+                            <span class="value" data-key="inference_latency_ms"></span>ms
+                        </div>
+                        <div class="metric training-metric">
                             <span class="title">World size:</span>
                             <span class="value" data-key="world_size"></span>
                         </div>
-                        <div class="metric">
+                        <div class="metric training-metric">
                             <span class="title">Epochs:</span>
                             <span class="value" data-key="epochs"></span>
+                        </div>
+                        <div class="metric cpu-metric" style="display: none;">
+                            <span class="title">Avg CPU Usage:</span>
+                            <span class="value" data-key="overall_avg_cpu_usage"></span> %
+                        </div>
+                        <div class="metric mem-metric" style="display: none;">
+                            <span class="title">Avg Memory:</span>
+                            <span class="value" data-key="overall_avg_memory_percent"></span> %
+                        </div>
+                        <div class="metric mem-metric" style="display: none;">
+                            <span class="title">Memory Used:</span>
+                            <span class="value" data-key="overall_avg_memory_used"></span> B
+                        </div>
+                        <div class="metric net-metric" style="display: none;">
+                            <span class="title">Avg Network:</span>
+                            <span class="value" data-key="overall_avg_bytes_per_second"></span> B/s
+                        </div>
+                        <div class="metric net-metric" style="display: none;">
+                            <span class="title">Net Sent:</span>
+                            <span class="value" data-key="total_bytes_sent_during_run"></span> B
+                        </div>
+                        <div class="metric net-metric" style="display: none;">
+                            <span class="title">Net Recv:</span>
+                            <span class="value" data-key="total_bytes_recv_during_run"></span> B
                         </div>
                         <div class="metric">
                             <span class="title">Timestamp:</span>
@@ -127,15 +180,25 @@
         <!-- Graph section with tiling manager -->
         <section class="graph-section">
             <div class="title-bar">
-                <h2>History Graphs</h2>
-                <div class="buttons">
-                    <button type="button" id="add-tile" class="btn-start">Add graph</button>
+                <h2>History Graph</h2>
+                <div class="controls">
+                    <label for="metric-select">Metric:</label>
+                    <select id="metric-select">
+                        <option value="accuracy" selected>Accuracy</option>
+                        <option value="training_time">Training Time</option>
+                        <option value="test_time">Test Time</option>
+                        <option value="throughput">Throughput</option>
+                        <option value="latency_per_batch_ms">Latency</option>
+                        <option value="epochs">Epochs</option>
+                    </select>
                 </div>
             </div>
 
             <div id="graph-tiles" class="graph-tiles">
                 <!-- tiles will be injected here by Graphs.js -->
             </div>
+            <div id="graph-tiles" class="graph-tiles">
+                </div>
         </section>
 
         <section class="history-section">
@@ -152,26 +215,20 @@
 
             <div class="results-display">
                 <div class="two-columns" id="history-tables" style="display: none;">
-                    <table>
+                    <table id="main-history-table">
                         <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>Parallelism</th>
-                                <th>World Size</th> <th>Epochs</th>
-                                <th>Train Time</th>
-                                <th>Throughput</th>
-                            </tr>
-                        </thead>
+                            </thead>
                         <tbody id="train-body"></tbody>
                     </table>
 
-                    <table>
+                    <table id="test-history-table">
                         <thead>
                             <tr>
                                 <th>Test Run</th>
                                 <th>Accuracy</th>
                                 <th>Test Time</th>
-                                <th>Latency</th>
+                                <th>Inf. Throughput</th>
+                                <th>Inf. Latency</th>
                             </tr>
                         </thead>
                         <tbody id="test-body"></tbody>

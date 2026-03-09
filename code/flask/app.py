@@ -3,13 +3,28 @@ from utils.log_reader import read_latest_log, read_history_log, get_archived_run
 import subprocess
 import os
 import signal
+import logging
+import shutil
+import sys
+from config import Config
+import stop
 
 app = Flask(__name__)
+
+#Slår av loggin, kommentera ut bara
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
 active_tasks = {}
 has_data = False
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CODE_DIR = os.path.dirname(BASE_DIR)
+sys.path.append(CODE_DIR)
+
+
+launch_script = os.path.join(CODE_DIR, "launch.py")
+
 launch_script = os.path.join(CODE_DIR, "launch.py")
 
 @app.route("/", methods=["GET", "POST"])
@@ -22,37 +37,42 @@ def index():
             parallelism = request.form["parallelism"]
             saved = request.form["saved"]
 
+            time_limit_min = request.form.get("time_limit", "0")
+            time_limit_sec = int(time_limit_min) * 60 if time_limit_min.isdigit() else 0
+
+            custom_name = request.form.get("custom_name", "").strip()
+
             print(
-                f"Starting training: Model={model}, Parallelism={parallelism}, Saved={saved}"
+                f"Starting training: Model={model}, Parallelism={parallelism}, Saved={saved}, TimeLimit={time_limit_sec}s, Name={custom_name}"
             )
-            proc = subprocess.Popen(["python", launch_script, parallelism, saved])
+
+            cmd = [
+                "python", launch_script,
+                "--model", parallelism,
+                "--saved", saved,
+                "--time_limit", str(time_limit_sec)
+            ]
+
+            if custom_name:
+                cmd.extend(["--name", custom_name])
+
+            proc = subprocess.Popen(cmd)
 
             active_tasks["training"] = proc.pid
             print(f"Started training with PID {proc.pid}")
             return redirect(url_for("index"))
 
         elif action == "stop":
-            pid = active_tasks.get("training")
-            if pid:
-                try:
-                    os.killpg(os.getpgid(pid), signal.SIGTERM)
-                    active_tasks.pop("training", None)
-                except ProcessLookupError:
-                    pass
+            stop.stop_session()
+            active_tasks.pop("training", None)
             return redirect(url_for("index"))
 
         elif action == "clear-latest":
-            try:
-                os.remove("/scratch/temp/latest.log")
-            except FileNotFoundError:
-                pass
+            stop.clean_temp_folders()
             return redirect(url_for("index"))
-        
+
         elif action == "clear-history":
-            try:
-                os.remove("/scratch/temp/history.log")
-            except FileNotFoundError:
-                pass
+            stop.clean_history()
             return redirect(url_for("index"))
 
     return render_template("index.html")
@@ -107,4 +127,4 @@ def api_archives(model_type):
     return jsonify(runs)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5005, debug=True)

@@ -88,21 +88,25 @@
     let historyData = [];
     const tiles = [];
 
-    function updateAllCharts() {
-        tiles.forEach(tile => {
-            if (!tile.canvas || !tile.canvas.parentElement) return;
-            
-            const metric = tile.metricSelect.value;
-            const chartType = tile.typeSelect ? tile.typeSelect.value : 'bar';
-            const labels = historyData.map((h, i) => {
-                if (h.parallelism_type) return h.parallelism_type;
-                if (h.timestamp) return formatTimestamp(h.timestamp);
-                return `Run ${i+1}`;
+            // Prefer showing the parallelism type on the x-axis; fall back to timestamp/run number
+            const labels = history.map((h, i) => {
+                let name = h.parallelism_type ? h.parallelism_type.replace(/_/g, ' ') : `Run ${i+1}`;
+                let time = h.timestamp ? h.timestamp.split(' ')[1] : '';
+                return `${name}\n${time}`;
             });
-            const handler = metricHandlers[metric] || (h => parseFloat(h[metric]));
-            const data = historyData.map(h => {
-                const raw = handler(h);
-                const v = parseFloat(raw);
+            const data = history.map(h => {
+                let val = null;
+
+                if (h[selectedMetric] !== undefined) {
+                    val = h[selectedMetric];
+                }
+                else if (h.tests && h.tests.length > 0) {
+                    if (h.tests[0][selectedMetric] !== undefined) {
+                        val = h.tests[0][selectedMetric];
+                    }
+                }
+
+                const v = parseFloat(val);
                 return Number.isFinite(v) ? v : null;
             });
             const isPercent = metric === 'accuracy';
@@ -116,12 +120,29 @@
                 return;
             }
 
-            if (tile.chart) {
-                tile.chart.config.type = chartType;
-                tile.chart.data.labels = labels;
-                tile.chart.data.datasets[0].data = data;
-                tile.chart.data.datasets[0].label = displayLabel;
-                tile.chart.options.plugins.tooltip.callbacks.label = function(context) {
+            const ctx = canvas.getContext('2d');
+            // ensure high-DPI rendering matches display size
+            const scale = window.devicePixelRatio || 1;
+            ctx.canvas.width = ctx.canvas.clientWidth * scale;
+            ctx.canvas.height = ctx.canvas.clientHeight * scale;
+            ctx.scale(scale, scale);
+
+            const labelMap = {
+                'accuracy': 'Accuracy (%)',
+                'throughput': 'Throughput',
+                'training_time': 'Training time (s)',
+                'test_time': 'Test time (s)',
+                'latency_per_batch_ms': 'Latency per batch (ms)',
+                'epochs': 'Epochs'
+            };
+            const isPercent = selectedMetric === 'accuracy';
+            const displayLabel = labelMap[selectedMetric] || selectedMetric;
+
+            if (chart) {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = data;
+                chart.data.datasets[0].label = displayLabel;
+                chart.options.plugins.tooltip.callbacks.label = function(context) {
                     let v = context.formattedValue;
                     return isPercent ? `${v} %` : v;
                 };
