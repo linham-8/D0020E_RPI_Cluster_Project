@@ -21,6 +21,22 @@ class Config():
     LAUNCH_SCRIPT = SRC_DIR / "launch.py"
     LATEST_LOG = TEMP_DIR / "latest.log"
     HISTORY_LOG = TEMP_DIR / "history.log"
-    
+
     # Nodes
     COMPUTE_NODES = ["pi1", "pi2", "pi3", "pi4"]
+
+    # World Size
+    WORLD_SIZE = len(COMPUTE_NODES) + 1
+
+    # Models & Training
+    SUPPORTED_MODELS = [
+        "data_parallel",
+        "expert_parallel",
+        "pipeline_parallel",
+        "model_parallel",
+    ]
+    EPOCHS = 5
+    BATCH_SIZE = 512
+    LEARNING_RATE = 0.01
+    HIDDEN_DIM = 128
+    DATA_ROOT = Path("/scratch/datasets")
