@@ -10,7 +10,9 @@ const trainingForm = document.getElementById('config-form');
 const configInputs = {
     model: document.getElementById('model-input'),
     parallelism: document.getElementById('parallelism-input'),
-    saved: document.getElementById('saved-input')
+    saved: document.getElementById('saved-input'),
+    timeLimit: document.getElementById('time_limit'),
+    customName: document.getElementById('custom_name')
 };
 
 let wasActive = null;
@@ -39,14 +41,14 @@ function updateUI(isActive, details = null) {
 }
 
 async function startTraining() {
-    if (!trainingForm.reportValidity()) {
-        return;
-    }
+    if (!trainingForm.reportValidity()) return;
 
     const payload = {
         model: configInputs.model.value,
         parallelism: configInputs.parallelism.value,
-        saved: configInputs.saved.value
+        saved: configInputs.saved.value,
+        time_limit: configInputs.timeLimit.value,
+        custom_name: configInputs.customName.value
     };
 
     try {

@@ -1,15 +1,30 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
-from .utils.log_reader import read_latest_log, read_history_log, get_archived_runs
+from utils.log_reader import read_latest_log, read_history_log, get_archived_runs
 import subprocess
 import os
 import signal
+import logging
+import shutil
+import sys
 from config import Config
+import stop
 
 app = Flask(__name__)
+
+#Slår av loggin, kommentera ut bara
+#log = logging.getLogger('werkzeug')
+#log.setLevel(logging.ERROR)
+
 active_tasks = {}
 has_data = False
 
-@app.route("/")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CODE_DIR = os.path.dirname(BASE_DIR)
+sys.path.append(CODE_DIR)
+launch_script = os.path.join(CODE_DIR, "launch.py")
+
+
+@app.route("/", methods=["GET", "POST"])
 def index():
     """Main page route used to start and stop training, and view results and graphs"""
     return render_template("index.html")
@@ -31,28 +46,30 @@ def api_docs():
 
 @app.route("/api/training/start", methods=["POST"])
 def api_start():
-    """API route used to start training"""
     data = request.get_json() or {}
-    if "training" in active_tasks:
-        pid = active_tasks["training"]["pid"]
-        if is_process_running(pid):
-            return jsonify({"status": "error", "message": "Training already in progress"}), 400
-        else:
-            active_tasks.pop("training")
+    
+    if is_process_running():
+        return jsonify({"status": "error", "message": "Training already in progress"}), 400
 
     model = data.get("model")
     parallelism = data.get("parallelism")
     saved = data.get("saved")
-
-    log_path = Config.LATEST_LOG
-    try:
-        os.remove(log_path)
-    except FileNotFoundError:
-        pass
+    time_limit_min = str(data.get("time_limit", "0"))
+    time_limit_sec = int(time_limit_min) * 60 if time_limit_min.isdigit() else 0
+    custom_name = str(data.get("custom_name", "")).strip()
 
     try:
-        proc = subprocess.Popen(
-                ["python", "-m", "src.launch", parallelism, saved], cwd=Config.ROOT_DIR)
+        cmd = [
+            "python", launch_script,
+            "--model", parallelism, 
+            "--saved", saved,
+            "--time_limit", str(time_limit_sec)
+        ]
+
+        if custom_name:
+            cmd.extend(["--name", custom_name])
+
+        proc = subprocess.Popen(cmd, cwd=Config.ROOT_DIR)
         
         active_tasks["training"] = {
             "proc": proc,
@@ -63,8 +80,7 @@ def api_start():
         
         return jsonify({
             "status": "success",
-            "pid": proc.pid,
-            "message": f"Started {parallelism} training."
+            "message": f"Started {parallelism} training (PID: {proc.pid})"
         }), 202
 
     except Exception as e:
@@ -79,55 +95,46 @@ def api_stop():
         return jsonify({"status": "error", "message": "No active task found"}), 404
 
     try:
-        subprocess.run(
-            ["python", "-m", "src.stop", task_info["parallelism"]], cwd=Config.ROOT_DIR)
+        stop.stop_session()
             
-        active_tasks.pop("training")
-        return jsonify({"status": "success", "message": "Training stopped"})
+        active_tasks.pop("training", None)
+        
+        return jsonify({"status": "success", "message": "Training stopped"}), 200
     
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/api/training/status", methods=["GET"])
 def api_status():
-    """API route returning training status"""
-    
     if is_process_running():
         task_data = active_tasks["training"]
-        details = {
-            "pid": task_data.get("pid"),
-            "parallelism": task_data.get("parallelism"),
-            "model": task_data.get("model")
-        }
-        
         return jsonify({
             "active": True,
-            "details": details
+            "details": {
+                "pid": task_data.get("pid"),
+                "parallelism": task_data.get("parallelism"),
+                "model": task_data.get("model")
+            }
         })
-    
-    active_tasks.pop("training", None)
     return jsonify({"active": False})
 
-@app.route("/api/logs/clear", methods=["POST"]) # TODO delete correct history file/dir
+@app.route("/api/logs/clear", methods=["POST"])
 def api_clear_logs():
-    """API route used to delete log files"""
+    """API route that triggers the deletion logic in stop.py"""
     data = request.get_json() or {}
     target = data.get("target")
     
-    paths = {
-        "latest": Config.LATEST_LOG,
-        "history": Config.HISTORY_LOG
-    }
-    
-    if target not in paths:
-        return jsonify({"status": "error", "message": "Invalid target"}), 400
-    
     try:
-        os.remove(paths[target])
-    except FileNotFoundError:
-        pass
-    
-    return jsonify({"status": "success"})
+        if target == "latest":
+            stop.clean_temp_folders()
+        elif target == "history":
+            stop.clean_history()
+        else:
+            return jsonify({"status": "error", "message": "Invalid target"}), 400
+            
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/api/latest")
 def api_latest():
@@ -162,5 +169,9 @@ def is_process_running():
     
     if proc.poll() is None:
         return True
-    
+
+    active_tasks.pop("training", None)
     return False
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

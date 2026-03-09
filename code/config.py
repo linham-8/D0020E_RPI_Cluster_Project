@@ -14,7 +14,7 @@ class Config():
     BASE_DIR = Path(str(RAW_BASE).replace("/mnt/usb/scratch", "/scratch", 1))
 
     # Subdirectories
-    SRC_DIR = BASE_DIR / "src"
+    SRC_DIR = BASE_DIR / "code"
     MODELS_DIR = SRC_DIR / "models"
 
     # Files

@@ -1,12 +1,26 @@
 import json
 import os
 from pathlib import Path
+import sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.join(current_dir, '..', '..')
+sys.path.append(os.path.abspath(parent_dir))
 from config import Config
 
+def read_json(filepath):
+    try:
+        if filepath.exists() and filepath.stat().st_size > 0:
+            with open(filepath, "r") as f:
+                return json.load(f)
+    except:
+        pass
+    return {}
+
 def read_latest_log():
-    """Reads the newest log file from /scratch/temp and returns its data."""
+    """Reads the newest log file and returns its data."""
     default_data = {
-        "model_type": "N/A",
+        "parallelism_type": "N/A",
         "accuracy": "N/A",
         "training_time": "N/A",
         "test_time": "N/A",
@@ -20,38 +34,38 @@ def read_latest_log():
         "type": "N/A",
     }
     try:
-        latest_log_path = Path("/scratch/temp/latest.log")
+        latest_dir = Config.TEMP_DIR / "latest"
+        latest_log_path = latest_dir / "latest.log"
 
         if not latest_log_path.exists() or latest_log_path.stat().st_size == 0:
             return default_data
-        
-        with open(latest_log_path, "r") as f:
-            data = json.load(f)
-            return {
-                "type": data.get("type", "N/A"),
-                "parallelism_type": data.get(
-                    "model_type", data.get("parallelism_type", "N/A")
-                ),
-                "accuracy": data.get("accuracy", "N/A"),
-                "training_time": data.get("training_time", "N/A"),
-                "test_time": data.get("test_time", "N/A"),
-                "throughput": data.get("throughput", "N/A"),
-                "latency_per_batch_ms": data.get(
-                    "latency_per_batch_ms", data.get("latency_per_batch", "N/A")
-                ),
-                "inference_throughput": data.get("inference_throughput", "N/A"),
-                "inference_latency_ms": data.get("inference_latency_ms", "N/A"),
-                "world_size": data.get("world_size", "N/A"),
-                "epochs": data.get("epochs", "N/A"),
-                "timestamp": data.get("timestamp", "N/A"),
-                "has_data": True,
-                "log_file": str(latest_log_path.name),
-            }
-    except FileNotFoundError:
-        print("Log file not found.")
-        return default_data
-    except json.JSONDecodeError:
-        print("Error decoding JSON from log file.")
+
+        data = read_json(latest_log_path)
+
+        result = {
+            "type": data.get("type", "N/A"),
+            "parallelism_type": data.get("parallelism_type", "N/A"),
+            "accuracy": data.get("accuracy", "N/A"),
+            "training_time": data.get("training_time", "N/A"),
+            "test_time": data.get("test_time", "N/A"),
+            "throughput": data.get("throughput", "N/A"),
+            "latency_per_batch_ms": data.get("latency_per_batch_ms", "N/A"),
+            "inference_throughput": data.get("inference_throughput", "N/A"),
+            "inference_latency_ms": data.get("inference_latency_ms", "N/A"),
+            "world_size": data.get("world_size", "N/A"),
+            "epochs": data.get("epochs", "N/A"),
+            "timestamp": data.get("timestamp", "N/A"),
+            "has_data": True,
+            "log_file": str(latest_log_path.name),
+        }
+
+        result.update(read_json(latest_dir / "cpu.log"))
+        result.update(read_json(latest_dir / "mem.log"))
+        result.update(read_json(latest_dir / "net.log"))
+
+        return result
+    except Exception as e:
+        print(f"Error reading latest log: {e}")
         return default_data
 
 
@@ -66,45 +80,30 @@ def get_archived_runs(filter_type=None):
         if not run_folder.is_dir():
             continue
 
-        train_log = run_folder / "train" / "training.log"
+        latest_dir = run_folder / "latest"
+        log_path = latest_dir / "latest.log"
 
-        if not train_log.exists():
-            pass
-
-        run_data = None
-        if train_log.exists():
+        if log_path.exists():
             try:
-                with open(train_log, "r") as f:
-                    run_data = json.load(f)
-                    run_data["path"] = str(run_folder)
+                run_data = read_json(log_path)
+                if not run_data:
+                    continue
+
+                run_data["path"] = str(run_folder)
+
+                if filter_type and run_data.get("parallelism_type") != filter_type:
+                    continue
+
+                run_data.update(read_json(latest_dir / "cpu.log"))
+                run_data.update(read_json(latest_dir / "mem.log"))
+                run_data.update(read_json(latest_dir / "net.log"))
+
+                if "tests" not in run_data:
+                    run_data["tests"] = [run_data.copy()]
+
+                runs.append(run_data)
             except:
                 continue
-
-        if run_data:
-            if filter_type and run_data.get("parallelism_type") != filter_type:
-                continue
-
-            tests = []
-
-            std_test = run_folder / "test" / "test.log"
-            if std_test.exists():
-                try:
-                    with open(std_test, "r") as f:
-                        tests.append(json.load(f))
-                except:
-                    pass
-
-            for f_path in run_folder.glob("test_log_*.json"):
-                try:
-                    with open(f_path, "r") as f:
-                        tests.append(json.load(f))
-                except:
-                    pass
-
-            tests.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-            run_data["tests"] = tests
-
-            runs.append(run_data)
 
     runs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return runs
@@ -113,7 +112,7 @@ def get_archived_runs(filter_type=None):
 def read_history_log():
     merged_data = {}
     try:
-        history_log_path = Path("/scratch/temp/history.log")
+        history_log_path = Config.HISTORY_LOG
         if not history_log_path.exists():
             return []
 
@@ -131,6 +130,10 @@ def read_history_log():
                             merged_data[ts] = entry
                         else:
                             merged_data[ts].update(entry)
+
+                        if "tests" not in merged_data[ts]:
+                            merged_data[ts]["tests"] = [merged_data[ts].copy()]
+
                 except json.JSONDecodeError:
                     continue
 

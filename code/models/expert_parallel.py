@@ -1,119 +1,89 @@
 import os
-import sys
-import torch
-import torch.distributed as dist
-import torch.nn as nn
-import json
 import time
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+from .models import BaseModel
+from config import Config
 
-def get_unique_filename(directory, base_name, extension):
-    """Hittar ett unikt filnamn, börjar alltid på _0."""
-    counter = 0
-    while True:
-        file_path = os.path.join(directory, f"{base_name}_{counter}.{extension}")
-        if not os.path.exists(file_path):
-            return file_path
-        counter += 1
-
-def main():
-    # Argumenthantering
-    try:
-        os.environ["GLOO_SOCKET_IFNAME"] = "eth0"
-        rank = int(sys.argv[1])
-        use_saved = sys.argv[2] if len(sys.argv) > 2 else "no"
-
-        archive_arg = sys.argv[3] if len(sys.argv) > 3 else "None"
-        archive_dir = archive_arg if archive_arg != "None" else None
-
-        world_size = 5
-    except (IndexError, ValueError) as e:
-        print(
-            f"Invalid arguments. Usage: python expert_parallel.py <rank> <saved> <archive>. Error: {e}"
+class ExpertParallelModel(BaseModel):
+    def __init__(self, data_loader, test_loader, dist_config, archive_dir=None, use_saved="no"):
+        super().__init__(
+            data_loader=data_loader,
+            test_loader=test_loader,
+            dist_config=dist_config,
+            archive_dir=archive_dir,
+            use_saved=use_saved,
+            parallelism_type="expert_parallel"
         )
-        sys.exit(1)
 
-    print(f"Rank {rank}: Starting initialization.")
+    def build_model(self):
+        self.num_experts = self.num_compute_nodes
 
-    try:
-        # Initiera processgrupp
-        dist.init_process_group(
-            backend="gloo",
-            rank=rank,
-            world_size=world_size,
-            store=dist.FileStore(
-                "/scratch/temp/expert_parallel_sync", world_size=world_size
-            ),
-        )
-        print(f"Rank {rank}: Connected to cluster.")
+        if self.rank == 0:
+            # Rank 0: Gate
+            model = nn.Linear(self.input_dim, self.num_experts).to(self.device)
+            if self.use_saved == "yes" and self.archive_dir:
+                model_path = os.path.join(self.archive_dir, "model", "expert_parallel_gate_model.pt")
+                if os.path.exists(model_path):
+                    model.load_state_dict(torch.load(model_path, weights_only=True))
+                    print(f"Rank 0: Loaded saved gate model.")
+        else:
+            # Rank 1-4: Experts
+            model = nn.Sequential(
+                nn.Linear(self.input_dim, Config.HIDDEN_DIM),
+                nn.ReLU(),
+                nn.Linear(Config.HIDDEN_DIM, self.num_classes)
+            ).to(self.device)
+            if self.use_saved == "yes" and self.archive_dir:
+                model_path = os.path.join(self.archive_dir, "model", f"expert_parallel_rank{self.rank}_model.pt")
+                if os.path.exists(model_path):
+                    model.load_state_dict(torch.load(model_path, weights_only=True))
+        return model
 
-        def load(path, offset):
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"Dataset not found at {path}")
-            with open(path, "rb") as f:
-                return torch.frombuffer(bytearray(f.read()[offset:]), dtype=torch.uint8)
+    def build_optimizer(self):
+        if self.rank == 0:
+            return torch.optim.SGD(self.model.parameters(), lr=Config.LEARNING_RATE)
+        return torch.optim.SGD(self.model.parameters(), lr=Config.LEARNING_RATE)
+
+    def build_criterion(self):
+        if self.rank == 0:
+            return nn.CrossEntropyLoss()
+        return None
+
+    def train(self, epochs=Config.EPOCHS, time_limit=None):
+        start_time = time.time()
+        batch_size = self.data_loader.batch_size if self.data_loader else Config.BATCH_SIZE
 
         # Rank 0: Gate
-        if rank == 0:
-            # Inläsning av data
-            X = (
-                load("/scratch/mnist_dataset/emnist-digits-train-images-idx3-ubyte", 16)
-                .float()
-                .reshape(-1, 784)
-                / 255.0
-            )
-            Y = load(
-                "/scratch/mnist_dataset/emnist-digits-train-labels-idx1-ubyte", 8
-            ).long()
-
-            Xt = (
-                load("/scratch/mnist_dataset/emnist-digits-test-images-idx3-ubyte", 16)
-                .float()
-                .reshape(-1, 784)
-                / 255.0
-            )
-            Yt = load(
-                "/scratch/mnist_dataset/emnist-digits-test-labels-idx1-ubyte", 8
-            ).long()
-
-            gate_model = nn.Linear(784, 4)
-            gate_opt = torch.optim.SGD(gate_model.parameters(), lr=0.01)
-
-            if use_saved == "yes":
-                model_path = "/scratch/temp/expert_parallel_gate_model.pt"
-                if archive_dir and os.path.exists(os.path.join(archive_dir, "expert_parallel_gate_model.pt")):
-                    model_path = os.path.join(archive_dir, "expert_parallel_gate_model.pt")
-                    print(f"Rank {rank}: Loaded saved gate model.")
-                if os.path.exists(model_path):
-                    gate_model.load_state_dict(torch.load(model_path))
-
-
-            dist.barrier()
-            start_time = time.time()
-
-            # Träningsloopen
-            if use_saved != "yes":
+        if self.rank == 0:
+            if self.use_saved != "yes":
                 dist.broadcast(torch.tensor([1]), src=0)
                 last_log_time = 0
 
-                for epoch in range(5):
-                    perm = torch.randperm(len(X))
-                    X_shuff = X[perm]
-                    Y_shuff = Y[perm]
+                current_image = 0
+                total_batches = len(self.data_loader)
+                total_images = total_batches * batch_size * epochs
 
-                    for i in range(0, len(X), 64):
-                        batch_x = X_shuff[i : i + 64]
-                        batch_y = Y_shuff[i : i + 64]
-                        if len(batch_x) < 64:
-                            continue
+                epoch = 0
+                keep_training = True
+
+                while keep_training:
+                    for i, (batch_x, batch_y) in enumerate(self.data_loader):
+
+                        actual_batch_size = batch_x.size(0)
+                        current_image += actual_batch_size
+
+                        batch_x, batch_y = batch_x.view(-1, self.input_dim), batch_y.long()
 
                         dist.broadcast(torch.tensor([1]), src=0)
 
                         with torch.no_grad():
-                            gate_scores = gate_model(batch_x)
+                            gate_scores = self.model(batch_x)
                             expert_assignments = torch.argmax(gate_scores, dim=1) + 1
 
                         expert_losses = []
-                        for r in range(1, 5):
+                        for r in range(1, self.world_size):
                             mask = expert_assignments == r
                             sub_x = batch_x[mask]
                             sub_y = batch_y[mask]
@@ -123,7 +93,7 @@ def main():
 
                             if len(sub_x) > 0:
                                 dist.send(sub_x, dst=r)
-                                pred_buffer = torch.zeros(len(sub_x), 10)
+                                pred_buffer = torch.zeros(len(sub_x), self.num_classes)
                                 dist.recv(pred_buffer, src=r)
 
                                 pred_buffer.requires_grad = True
@@ -132,198 +102,62 @@ def main():
                                 expert_losses.append(loss.item())
                                 dist.send(pred_buffer.grad, dst=r)
 
-                        gate_opt.zero_grad()
+                        self.optimizer.zero_grad()
                         gate_loss = torch.tensor(expert_losses).sum()
                         gate_loss.requires_grad = True
-                        gate_opt.step()
+                        gate_loss.backward()
+                        self.optimizer.step()
 
                         current_time = time.time()
                         if current_time - last_log_time >= 1.0:
-                            current_image = epoch * len(X) + i
-                            total_images = len(X) * 5
-                            formatted_time = time.strftime("%Y-%m-%d %H:%M:%S")
-
-                            live_log = {
-                                "progress": round(
-                                    (current_image / total_images) * 100, 2
-                                ),
-                                "current": current_image,
-                                "total": total_images,
-                                "timestamp": formatted_time,
-                            }
-                            try:
-                                with open("/scratch/temp/live.log", "a") as f:
-                                    json.dump(live_log, f)
-                                    f.write("\n")
-                                if archive_dir and os.path.isdir(archive_dir):
-                                    with open(
-                                        os.path.join(archive_dir, "live.log"), "a"
-                                    ) as f:
-                                        json.dump(live_log, f)
-                                        f.write("\n")
-                            except OSError as e:
-                                print(f"Rank 0: Logging failed: {e}")
+                            self.train_logger.log_live_progress(current_image, total_images, current_time - start_time, time_limit if time_limit else 0)
+                            self.collect_system_logs()
 
                             last_log_time = current_time
 
+                        if time_limit and (current_time - start_time) >= time_limit:
+                            keep_training = False
+                            break
+
+                    if not keep_training:
+                        break
+
+                    epoch += 1
+                    if not time_limit and epoch >= epochs:
+                        keep_training = False
+
                 dist.broadcast(torch.tensor([0]), src=0)
+
+                self.train_logger.log_live_progress(current_image, total_images, time_limit if time_limit else time.time() - start_time, time_limit if time_limit else 0, is_finished=True)
+                self.collect_system_logs()
+
             else:
                 dist.broadcast(torch.tensor([0]), src=0)
 
-            end_time = time.time()
-            training_time = end_time - start_time
+            training_time = time.time() - start_time
+            print(f"Total Training Time: {training_time:.2f}s")
 
-            run_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            if self.use_saved != "yes":
+                if self.archive_dir and os.path.isdir(self.archive_dir):
+                    model_dir = os.path.join(self.archive_dir, "model")
+                    os.makedirs(model_dir, exist_ok=True)
+                    torch.save(self.model.state_dict(), os.path.join(model_dir, "expert_parallel_gate_model.pt"))
 
-            if archive_dir and os.path.isdir(archive_dir):
-                train_dir = os.path.join(archive_dir, "train")
-                test_dir = os.path.join(archive_dir, "test")
-                
-                os.makedirs(train_dir, exist_ok=True)
-                os.makedirs(test_dir, exist_ok=True)
-
-            if use_saved != "yes":
-                torch.save(model.state_dict(), "/scratch/temp/data_parallel_model.pt")
-                if train_dir:
-                    torch.save(model.state_dict(), os.path.join(train_dir, "model.pt"))
-
-                total_batches = (len(X) / 64) * 5
-                throughput = (len(X) * 5) / training_time
-                avg_latency = (training_time / total_batches) * 1000
-
-                train_log = {
-                    "type": "training_result",
-                    "parallelism_type": "expert_parallel",
-                    "training_time": round(training_time, 2),
-                    "throughput": round(throughput, 2),
-                    "latency_per_batch_ms": round(avg_latency, 2),
-                    "world_size": world_size,
-                    "epochs": 5,
-                    "timestamp": run_timestamp,
-                }
-                
-                print(f"Total Training Time: {training_time:.2f}s")
-
-                try:
-                    with open("/scratch/temp/latest.log", "w") as f:
-                        json.dump(train_log, f)
-                    with open("/scratch/temp/history.log", "a") as f:
-                        json.dump(train_log, f)
-                        f.write("\n")
-
-                    if train_dir:
-                        with open(os.path.join(train_dir, "training.log"), "w") as f:
-                            json.dump(train_log, f)
-                        
-                        with open(os.path.join(archive_dir, "history.log"), "a") as f:
-                            json.dump(train_log, f)
-                            f.write("\n")
-
-                except OSError as e:
-                    print(f"Rank 0: Training logging failed: {e}")
-
-            dist.broadcast(torch.tensor([2]), src=0)
-
-            correct = 0
-            total = 0
-            test_start = time.time()
-
-            with torch.no_grad():
-                for i in range(0, len(Xt), 64):
-                    batch_xt = Xt[i : i + 64]
-                    batch_yt = Yt[i : i + 64]
-                    if len(batch_xt) < 64:
-                        continue
-
-                    dist.broadcast(torch.tensor([1]), src=0)
-                    gate_scores = gate_model(batch_xt)
-                    expert_assignments = torch.argmax(gate_scores, dim=1) + 1
-                    batch_preds = torch.zeros(64, 10)
-
-                    for r in range(1, 5):
-                        mask = expert_assignments == r
-                        sub_x = batch_xt[mask]
-
-                        count = torch.tensor([len(sub_x)])
-                        dist.send(count, dst=r)
-
-                        if len(sub_x) > 0:
-                            dist.send(sub_x, dst=r)
-                            pred_buffer = torch.zeros(len(sub_x), 10)
-                            dist.recv(pred_buffer, src=r)
-                            batch_preds[mask] = pred_buffer
-
-                    acc = (batch_preds.argmax(dim=1) == batch_yt).sum().item()
-                    correct += acc
-                    total += 64
-
-            test_time = time.time() - test_start
-            dist.broadcast(torch.tensor([0]), src=0)
-
-            final_acc = (correct / total) * 100
-            print(f"Accuracy: {final_acc:.2f}%")
-
-            inference_throughput = len(Xt) / test_time
-            inference_latency = (test_time / (len(Xt) / 64)) * 1000
-
-            test_log = {
-                "type": "test_result",
-                "parallelism_type": "expert_parallel",
-                "accuracy": float(final_acc),
-                "test_time": round(test_time, 2),
-                "inference_throughput": round(inference_throughput, 2),
-                "inference_latency_ms": round(inference_latency, 2),
-                "world_size": world_size,
-                "timestamp": run_timestamp,
-            }
-
-            try:
-                with open("/scratch/temp/latest.log", "w") as f:
-                    json.dump(test_log, f)
-                with open("/scratch/temp/history.log", "a") as f:
-                    json.dump(test_log, f)
-                    f.write("\n")
-
-                if test_dir:
-                    with open(os.path.join(test_dir, "test.log"), "w") as f:
-                        json.dump(test_log, f)
-                    
-                    with open(os.path.join(archive_dir, "history.log"), "a") as f:
-                        json.dump(test_log, f)
-                        f.write("\n")
-            except OSError as e:
-                print(f"Rank 0: Test logging failed: {e}")
-
-            if use_saved != "yes":
-                torch.save(
-                    gate_model.state_dict(), "/scratch/temp/expert_parallel_gate_model.pt"
+                self.train_logger.log_training_result(
+                    training_time=training_time,
+                    total_images=total_batches * batch_size * epochs,
+                    epochs=epochs,
+                    batch_size=batch_size
                 )
-                if archive_dir and os.path.isdir(archive_dir):
-                    torch.save(
-                        gate_model.state_dict(),
-                        os.path.join(archive_dir, "expert_parallel_gate_model.pt"),
-                    )
 
         # Rank 1-4: Experts
         else:
-            model = nn.Sequential(nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10))
-            opt = torch.optim.SGD(model.parameters(), lr=0.01)
-
-            if use_saved == "yes":
-                model_path = f"/scratch/temp/expert_parallel_rank{rank}_model.pt"
-                if archive_dir and os.path.exists(os.path.join(archive_dir, f"expert_parallel_rank{rank}_model.pt")):
-                     model_path = os.path.join(archive_dir, f"expert_parallel_rank{rank}_model.pt")
-                if os.path.exists(model_path):
-                    model.load_state_dict(torch.load(model_path))
-
-            dist.barrier()
-
             mode_signal = torch.tensor([0])
             dist.broadcast(mode_signal, src=0)
 
-            # Training Mode
             if mode_signal.item() == 1:
                 step_signal = torch.tensor([0])
+                last_log_time = 0
                 while True:
                     dist.broadcast(step_signal, src=0)
                     if step_signal.item() == 0:
@@ -334,33 +168,88 @@ def main():
                     curr_count = count_tensor.item()
 
                     if curr_count > 0:
-                        input_data = torch.zeros(curr_count, 784)
+                        input_data = torch.zeros(curr_count, self.input_dim)
                         dist.recv(input_data, src=0)
 
                         input_data.requires_grad = True
-                        opt.zero_grad()
-                        output = model(input_data)
+                        self.optimizer.zero_grad()
+                        output = self.model(input_data)
 
                         dist.send(output, dst=0)
 
-                        grad_in = torch.zeros(curr_count, 10)
+                        grad_in = torch.zeros(curr_count, self.num_classes)
                         dist.recv(grad_in, src=0)
 
                         output.backward(grad_in)
-                        opt.step()
+                        self.optimizer.step()
 
-                torch.save(
-                    model.state_dict(), f"/scratch/temp/expert_parallel_rank{rank}_model.pt"
-                )
-                if archive_dir and os.path.isdir(archive_dir):
-                    torch.save(
-                        model.state_dict(),
-                        os.path.join(archive_dir, f"expert_parallel_rank{rank}_model.pt"),
-                    )
+                        current_time = time.time()
+                        if current_time - last_log_time >= 1.0:
+                            self.collect_system_logs()
+                            last_log_time = current_time
 
+                self.collect_system_logs()
+
+                if self.archive_dir and os.path.isdir(self.archive_dir):
+                    model_dir = os.path.join(self.archive_dir, "model")
+                    os.makedirs(model_dir, exist_ok=True)
+                    torch.save(self.model.state_dict(), os.path.join(model_dir, f"expert_parallel_rank{self.rank}_model.pt"))
+
+    def test(self):
+        test_start = time.time()
+        batch_size = self.test_loader.batch_size if self.test_loader else Config.BATCH_SIZE
+
+        if self.rank == 0:
+            dist.broadcast(torch.tensor([2]), src=0)
+            correct = 0
+            total = 0
+
+            with torch.no_grad():
+                for batch_xt, batch_yt in self.test_loader:
+                    actual_batch_size = batch_xt.size(0)
+                    batch_xt, batch_yt = batch_xt.view(-1, self.input_dim), batch_yt.long()
+
+                    dist.broadcast(torch.tensor([1]), src=0)
+                    gate_scores = self.model(batch_xt)
+                    expert_assignments = torch.argmax(gate_scores, dim=1) + 1
+                    batch_preds = torch.zeros(actual_batch_size, self.num_classes)
+
+                    for r in range(1, self.world_size):
+                        mask = expert_assignments == r
+                        sub_x = batch_xt[mask]
+
+                        count = torch.tensor([len(sub_x)])
+                        dist.send(count, dst=r)
+
+                        if len(sub_x) > 0:
+                            dist.send(sub_x, dst=r)
+                            pred_buffer = torch.zeros(len(sub_x), self.num_classes)
+                            dist.recv(pred_buffer, src=r)
+                            batch_preds[mask] = pred_buffer
+
+                    acc = (batch_preds.argmax(dim=1) == batch_yt).sum().item()
+                    correct += acc
+                    total += actual_batch_size
+
+            test_time = time.time() - test_start
+            dist.broadcast(torch.tensor([0]), src=0)
+
+            final_acc = (correct / total) * 100 if total > 0 else 0
+            print(f"Accuracy: {final_acc:.2f}%")
+
+            self.test_logger.log_test_result(
+                test_time=test_time,
+                accuracy=final_acc,
+                total_test_images=total,
+                batch_size=batch_size
+            )
+
+            dist.barrier()
+
+        else:
+            mode_signal = torch.tensor([0])
             dist.broadcast(mode_signal, src=0)
-            
-            # Testing Mode
+
             if mode_signal.item() == 2:
                 step_signal = torch.tensor([0])
                 with torch.no_grad():
@@ -374,17 +263,8 @@ def main():
                         curr_count = count_tensor.item()
 
                         if curr_count > 0:
-                            input_data = torch.zeros(curr_count, 784)
+                            input_data = torch.zeros(curr_count, self.input_dim)
                             dist.recv(input_data, src=0)
-                            output = model(input_data)
+                            output = self.model(input_data)
                             dist.send(output, dst=0)
-
-    finally:
-        # Cleanup
-        if dist.is_initialized():
-            dist.destroy_process_group()
-            print(f"Rank {rank}: Process group destroyed.")
-
-
-if __name__ == "__main__":
-    main()
+            dist.barrier()
