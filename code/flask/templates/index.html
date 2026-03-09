@@ -177,7 +177,7 @@
             </section>
         </div>
 
-        <!-- Graph section -->
+        <!-- Graph section with tiling manager -->
         <section class="graph-section">
             <div class="title-bar">
                 <h2>History Graph</h2>
@@ -194,13 +194,8 @@
                 </div>
             </div>
 
-            <div class="graph-container">
-                <canvas id="history-chart" style="display: none;"></canvas>
-
-                <div id="graph-loader" class="waiting-card">
-                    <div class="spinner"></div>
-                    <p>Waiting for history data...</p>
-                </div>
+            <div id="graph-tiles" class="graph-tiles">
+                <!-- tiles will be injected here by Graphs.js -->
             </div>
             <div id="graph-tiles" class="graph-tiles">
                 </div>
