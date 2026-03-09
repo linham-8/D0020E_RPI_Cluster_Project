@@ -1,235 +1,155 @@
 import os
-import sys
+import time
+from datetime import datetime
 import torch
+import torch.nn as nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-import json
-import time
+from .models import BaseModel
+from config import Config
 
-def get_unique_filename(directory, base_name, extension):
-    """Hittar ett unikt filnamn, börjar alltid på _0."""
-    counter = 0
-    while True:
-        file_path = os.path.join(directory, f"{base_name}_{counter}.{extension}")
-        if not os.path.exists(file_path):
-            return file_path
-        counter += 1
+class SimpleLinearModel(nn.Module):
+    def __init__(self, input_dim, num_classes):
+        super().__init__()
+        self.flatten = nn.Flatten()
+        self.linear = nn.Linear(input_dim, num_classes)
 
-def main():
-    # Argumenthantering
-    try:
-        os.environ["GLOO_SOCKET_IFNAME"] = "eth0"
-        rank = int(sys.argv[1])
-        use_saved = sys.argv[2] if len(sys.argv) > 2 else "no"
+    def forward(self, x):
+        x = self.flatten(x)
+        return self.linear(x)
 
-        archive_arg = sys.argv[3] if len(sys.argv) > 3 else "None"
-        archive_dir = archive_arg if archive_arg != "None" else None
-
-        world_size = 5
-    except (IndexError, ValueError) as e:
-        print(
-            f"Invalid arguments. Usage: python data_parallel.py <rank> <saved> <archive>. Error: {e}"
+class DataParallelModel(BaseModel):
+    def __init__(self, data_loader, test_loader, dist_config, archive_dir=None, use_saved="no"):
+        super().__init__(
+            data_loader=data_loader,
+            test_loader=test_loader,
+            dist_config=dist_config,
+            archive_dir=archive_dir,
+            use_saved=use_saved,
+            parallelism_type="data_parallel"
         )
-        sys.exit(1)
 
-    print(f"Rank {rank}: Starting initialization.")
+    def build_model(self):
+        model = SimpleLinearModel(self.input_dim, self.num_classes).to(self.device)
 
-    try:
-        # Initiera processgrupp
-        dist.init_process_group(
-            backend="gloo",
-            rank=rank,
-            world_size=world_size,
-            store=dist.FileStore(
-                "/scratch/temp/data_parallel_sync", world_size=world_size
-            ),
-        )
-        print(f"Rank {rank}: Connected to cluster.")
-
-        # Inläsning av data
-        def load(path, offset):
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"Dataset not found at {path}")
-            with open(path, "rb") as f:
-                return torch.frombuffer(bytearray(f.read()[offset:]), dtype=torch.uint8)
-
-        X = (
-            load("/scratch/mnist_dataset/emnist-digits-train-images-idx3-ubyte", 16)
-            .float()
-            .reshape(-1, 784)
-            / 255.0
-        )
-        Y = load(
-            "/scratch/mnist_dataset/emnist-digits-train-labels-idx1-ubyte", 8
-        ).long()
-
-        # Sharding
-        X = X[rank::world_size]
-        Y = Y[rank::world_size]
-
-        model = DDP(torch.nn.Linear(784, 10))
-        opt = torch.optim.SGD(model.parameters(), lr=0.01)
-        crit = torch.nn.CrossEntropyLoss()
-
-        if use_saved == "yes":
-            model_path = os.path.join(archive_dir, "train", "model.pt")
+        if self.use_saved == "yes" and self.archive_dir:
+            model_path = os.path.join(self.archive_dir, "model", f"{self.parallelism_type}.pt")
             if os.path.exists(model_path):
-                model.load_state_dict(torch.load(model_path))
-                print(f"Rank {rank}: Loaded saved model from {model_path}")
-            else:
-                print(f"Rank {rank}: Saved model not found.")
+                model.load_state_dict(torch.load(model_path, weights_only=True))
+                if self.dist_config['rank'] == 0:
+                    print(f"Rank 0: Loaded saved model from {model_path}")
 
-        dist.barrier()
-        if rank == 0:
-            start_time = time.time()
+        return DDP(model)
 
-        # Träningsloopen
-        if use_saved != "yes":
-            last_log_time = 0
-            for epoch in range(5):
-                for i in range(0, len(X), 64):
-                    opt.zero_grad()
-                    loss = crit(model(X[i : i + 64]), Y[i : i + 64])
-                    loss.backward()
-                    opt.step()
+    def build_optimizer(self):
+        return torch.optim.SGD(self.model.parameters(), lr=Config.LEARNING_RATE)
 
-                    if rank == 0:
-                        current_time = time.time()
-                        if current_time - last_log_time >= 1.0:
-                            current_image = (epoch * len(X) + i) * world_size
-                            total_images = len(X) * 5 * world_size
-                            formatted_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    def build_criterion(self):
+        return nn.CrossEntropyLoss()
 
-                            live_log = {
-                                "progress": round(
-                                    (current_image / total_images) * 100, 2
-                                ),
-                                "current": current_image,
-                                "total": total_images,
-                                "timestamp": formatted_time,
-                            }
+    def train(self, epochs=Config.EPOCHS, time_limit=None):
 
-                            try:
-                                with open("/scratch/temp/live.log", "a") as f:
-                                    json.dump(live_log, f)
-                                    f.write("\n")
+        if self.use_saved == "yes":
 
-                                if archive_dir and os.path.isdir(archive_dir):
-                                    with open(
-                                        os.path.join(archive_dir, "live.log"), "a"
-                                    ) as f:
-                                        json.dump(live_log, f)
-                                        f.write("\n")
-                            except OSError as e:
-                                print(f"Rank 0: Logging failed: {e}")
+            return
 
-                            last_log_time = current_time
+        start_time = time.time()
+        last_log_time = 0
 
-        # Resultat
-        if rank == 0:
-            end_time = time.time()
-            training_time = end_time - start_time
+        current_image = 0
 
-            run_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        total_batches = len(self.data_loader)
+        total_images = total_batches * self.data_loader.batch_size * self.world_size * epochs
 
-            train_dir = None
-            test_dir = None
-            
-            if archive_dir and os.path.isdir(archive_dir):
-                train_dir = os.path.join(archive_dir, "train")
-                test_dir = os.path.join(archive_dir, "test")
-                
-                os.makedirs(train_dir, exist_ok=True)
-                os.makedirs(test_dir, exist_ok=True)
+        epoch = 0
+        keep_training = True
 
-            if use_saved != "yes":
-                if train_dir:
-                    torch.save(model.state_dict(), os.path.join(train_dir, "model.pt"))
+        while keep_training:
+            if hasattr(self.data_loader.sampler, "set_epoch"):
+                self.data_loader.sampler.set_epoch(epoch)
 
-                total_batches = (len(X) / 64) * 5
-                throughput = (len(X) * world_size * 5) / training_time
-                avg_latency = (training_time / total_batches) * 1000
+            for i, (batch_x, batch_y) in enumerate(self.data_loader):
+                actual_batch_size = batch_x.size(0)
 
-                train_log = {
-                    "type": "training_result",
-                    "parallelism_type": "data_parallel",
-                    "training_time": round(training_time, 2),
-                    "throughput": round(throughput, 2),
-                    "latency_per_batch_ms": round(avg_latency, 2),
-                    "world_size": world_size,
-                    "epochs": 5,
-                    "timestamp": run_timestamp,
-                }
-                
-                print(f"Total Training Time: {training_time:.2f}s")
+                batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
 
-                try:
-                    with open("/scratch/temp/latest.log", "w") as f:
-                        json.dump(train_log, f)
+                self.optimizer.zero_grad(set_to_none=True)
+                outputs = self.model(batch_x)
+                loss = self.criterion(outputs, batch_y)
+                loss.backward()
+                self.optimizer.step()
 
-                    if train_dir:
-                        with open(os.path.join(train_dir, "training.log"), "w") as f:
-                            json.dump(train_log, f)
+                if self.rank == 0:
+                    current_image += actual_batch_size * self.world_size
 
+                current_time = time.time()
+                if current_time - last_log_time >= 1.0:
+                    if self.rank == 0:
+                        self.train_logger.log_live_progress(current_image, total_images, current_time - start_time, time_limit if time_limit else 0)
 
-                except OSError as e:
-                    print(f"Rank 0: Training logging failed: {e}")
+                    self.collect_system_logs()
+                    last_log_time = current_time
 
-            Xt = (
-                load("/scratch/mnist_dataset/emnist-digits-test-images-idx3-ubyte", 16)
-                .float()
-                .reshape(-1, 784)
-                / 255.0
+                stop_signal = torch.tensor([0], device=self.device)
+                if time_limit and (current_time - start_time) >= time_limit:
+                    stop_signal.fill_(1)
+
+                dist.all_reduce(stop_signal, op=dist.ReduceOp.MAX)
+
+                if stop_signal.item() == 1:
+                    keep_training = False
+                    break
+
+            if not keep_training:
+                break
+
+            epoch += 1
+            if not time_limit and epoch >= epochs:
+                keep_training = False
+
+        if self.rank == 0:
+            self.train_logger.log_live_progress(current_image, total_images, time_limit if time_limit else time.time() - start_time, time_limit if time_limit else 0, is_finished=True)
+
+        self.collect_system_logs()
+
+        if self.rank == 0:
+            training_time = time.time() - start_time
+            print(f"Total Training Time: {training_time:.2f}s")
+
+            if self.archive_dir and os.path.isdir(self.archive_dir):
+                model_dir = os.path.join(self.archive_dir, "model")
+                os.makedirs(model_dir, exist_ok=True)
+                torch.save(self.model.state_dict(), os.path.join(model_dir, f"{self.parallelism_type}.pt"))
+
+            self.train_logger.log_training_result(
+                training_time=training_time,
+                total_images=current_image,
+                epochs=epoch,
+                batch_size=self.data_loader.batch_size * self.world_size
             )
-            Yt = load(
-                "/scratch/mnist_dataset/emnist-digits-test-labels-idx1-ubyte", 8
-            ).long()
 
-            test_start = time.time()
-            with torch.no_grad():
-                acc = (model(Xt).argmax(dim=1) == Yt).float().mean() * 100
-            test_time = time.time() - test_start
+    def test(self):
+        test_start = time.time()
+        correct = 0
+        total = 0
 
-            print(f"Accuracy: {acc:.2f}%")
+        with torch.no_grad():
+            for batch_xt, batch_yt in self.test_loader:
+                batch_xt, batch_yt = batch_xt.to(self.device), batch_yt.to(self.device)
+                outputs = self.model(batch_xt)
 
-            inference_throughput = len(Xt) / test_time
-            inference_latency = (test_time / (len(Xt) / 64)) * 1000
+                acc = (outputs.argmax(dim=1) == batch_yt).sum().item()
+                correct += acc
+                total += batch_yt.size(0)
 
-            test_log = {
-                "type": "test_result",
-                "parallelism_type": "data_parallel",
-                "accuracy": float(acc),
-                "test_time": round(test_time, 2),
-                "inference_throughput": round(inference_throughput, 2),
-                "inference_latency_ms": round(inference_latency, 2),
-                "world_size": world_size,
-                "timestamp": run_timestamp,
-            }
+        test_time = time.time() - test_start
 
-            try:
-                if os.path.exists("/scratch/temp/latest.log"):
-                    with open("/scratch/temp/latest.log", "r") as f:
-                        try:
-                            merged_log = json.load(f)
-                        except json.JSONDecodeError:
-                            merged_log = {}
-                    merged_log.update(test_log)
-                else:
-                    merged_log = test_log
-
-                with open("/scratch/temp/latest.log", "w") as f:
-                    json.dump(merged_log, f)
-
-                if test_dir and use_saved != "yes":
-                    with open(os.path.join(test_dir, "test.log"), "w") as f:
-                        json.dump(test_log, f)
-                    
-            except OSError as e:
-                print(f"Rank 0: Test logging failed: {e}")
-
-    finally:
-        if dist.is_initialized():
-            dist.destroy_process_group()
-
-if __name__ == "__main__":
-    main()
+        if self.rank == 0:
+            final_acc = (correct / total * 100) if total > 0 else 0
+            print(f"Accuracy: {final_acc:.2f}%")
+            self.test_logger.log_test_result(
+                test_time=test_time,
+                accuracy=final_acc,
+                total_test_images=total,
+                batch_size=self.test_loader.batch_size
+            )

@@ -81,9 +81,6 @@
                 if (h[selectedMetric] !== undefined) {
                     val = h[selectedMetric];
                 }
-                else if (selectedMetric === 'latency_per_batch' && h['latency_per_batch_ms'] !== undefined) {
-                    val = h['latency_per_batch_ms'];
-                }
                 else if (h.tests && h.tests.length > 0) {
                     if (h.tests[0][selectedMetric] !== undefined) {
                         val = h.tests[0][selectedMetric];
@@ -114,7 +111,7 @@
                 'throughput': 'Throughput',
                 'training_time': 'Training time (s)',
                 'test_time': 'Test time (s)',
-                'latency_per_batch': 'Latency per batch (ms)',
+                'latency_per_batch_ms': 'Latency per batch (ms)',
                 'epochs': 'Epochs'
             };
             const isPercent = selectedMetric === 'accuracy';

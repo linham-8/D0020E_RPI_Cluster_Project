@@ -2,6 +2,8 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import datasets
 from torchvision.transforms import ToTensor
+from torch.utils.data import Dataset, TensorDataset
+from config import Config
 
 """
     TODO Göra Download optional?
@@ -9,45 +11,53 @@ from torchvision.transforms import ToTensor
     TODO Docstring för funktionerna
 """
 
-def get_FashionMNIST_training_data() -> datasets.FashionMNIST:
+def get_FashionMNIST_training_data() -> Dataset:
     """
     Docstring for get_FashionMNIST_training_data
     """
-    return datasets.FashionMNIST(
-        root ="data",
-        train = True,
-        download = True,
-        transform = ToTensor()
+    raw_dataset = datasets.FashionMNIST(
+        root=Config.DATA_ROOT, train=True, download=True
     )
-def get_FashionMNIST_test_data() -> datasets.FashionMNIST:
+
+    data = raw_dataset.data.float().reshape(-1, 784) / 255.0
+    targets = raw_dataset.targets.long()
+
+    return TensorDataset(data, targets)
+
+def get_FashionMNIST_test_data() -> Dataset:
     """
     Docstring for get_FashionMNIST_test_data
     """
-    return datasets.FashionMNIST(
-        root = "data",
-        train = False,
-        download = True,
-        transform = ToTensor()
+    raw_dataset = datasets.FashionMNIST(
+        root=Config.DATA_ROOT, train=False, download=True
     )
-def get_EMNIST_training_data() -> datasets.EMNIST:
+
+    data = raw_dataset.data.float().reshape(-1, 784) / 255.0
+    targets = raw_dataset.targets.long()
+
+    return TensorDataset(data, targets)
+
+def get_EMNIST_training_data() -> Dataset:
     """
     Docstring for get_EMNIST_training_data
     """
-    return datasets.EMNIST(
-        root = "data",
-        train = True,
-        download = True,
-        transform = ToTensor()
+    raw_dataset = datasets.EMNIST(
+        root=Config.DATA_ROOT, split='digits', train=True, download=True
     )
 
-def get_EMNIST_test_data() -> datasets.EMNIST:
+    data = raw_dataset.data.float().reshape(-1, 784) / 255.0
+    targets = raw_dataset.targets.long()
+
+    return TensorDataset(data, targets)
+
+def get_EMNIST_test_data() -> Dataset:
     """
     Docstring for get_EMNIST_test_data
     """
-    return datasets.EMNIST(
-        root = "data",
-        train = False,
-        download = True,
-        transform = ToTensor()
+    raw_dataset = datasets.EMNIST(
+        root=Config.DATA_ROOT, split='digits', train=False, download=True
     )
-  
+    data = raw_dataset.data.float().reshape(-1, 784) / 255.0
+    targets = raw_dataset.targets.long()
+
+    return TensorDataset(data, targets)
