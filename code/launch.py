@@ -66,7 +66,7 @@ def start_cluster(selected_model, saved_choice, custom_name=None, time_limit=0):
     latest_log_path = os.path.join(TEMP_DIR, "latest", "latest.log")
 
     if saved_choice == "no":
-        stop.clean_live_folders()
+        stop.clean_temp_folders()
         os.makedirs(os.path.join(TEMP_DIR, "live", "nodes"), exist_ok=True)
         os.makedirs(os.path.join(TEMP_DIR, "latest", "nodes"), exist_ok=True)
     else:
@@ -96,7 +96,7 @@ def start_cluster(selected_model, saved_choice, custom_name=None, time_limit=0):
         print(f"Could not start head node: {e}")
         sys.exit(1)
 
-    for rank, node in enumerate(COMPUTE_NODES, start=1):
+    for rank, node in enumerate(Config.COMPUTE_NODES, start=1):
         print(f"Starting {rank} on {node}.")
         try:
             remote_cmd = f"PYTHONPATH={BASE_DIR} {PYTHON_EXEC} -u {runner_script} --model {selected_model} --rank {rank} --use_saved {use_saved_flag} --archive_dir {archive_dir} --time_limit {time_limit}"

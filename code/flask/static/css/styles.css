@@ -1,4 +1,3 @@
-
 /* General */
 
 * {
@@ -100,12 +99,13 @@ select {
 }
 
 button {
-    flex: 1;
+    width: 100%;
     padding: 10px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     transition: 0.2s;
+    font-weight: bold;
 }
 
 .btn-start {
@@ -124,6 +124,10 @@ button {
 
 .btn-stop:hover {
     background: #a71826;
+}
+
+.stop-area {
+    margin-top: 15px;
 }
 
 .btn-clear {
@@ -287,6 +291,19 @@ td {
 .tile-canvas canvas {
     width: 100% !important;
     height: 100% !important;
+}
+
+/* Optional: make metric selector look nicer */
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.controls select {
+    width: auto;
+    min-width: 180px;
 }
 
 .tile-loader {

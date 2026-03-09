@@ -27,11 +27,11 @@
                     </div>
                 </div>
 
-                <form id="config-form" method="post">
+                <form id="config-form">
                     <div class="input-grid">
                         <div class="input-group">
                             <label for="model">Model:</label>
-                            <select name="model" id="model" required>
+                            <select name="model" id="model-input" required>
                                 <option value="">-- Choose --</option>
                                 <option value="svm">SVM</option>
                             </select>
@@ -39,7 +39,7 @@
 
                         <div class="input-group">
                             <label for="parallelism">Parallelism type:</label>
-                            <select name="parallelism" id="parallelism" required>
+                            <select name="parallelism" id="parallelism-input" required>
                                 <option value="">-- Choose --</option>
                                 <option value="data_parallel">Data parallelism</option>
                                 <option value="expert_parallel">Expert parallelism</option>
@@ -50,49 +50,54 @@
 
                         <div class="input-group">
                             <label for="saved">Use saved data?</label>
-                            <select name="saved" id="saved" required>
+                            <select name="saved" id="saved-input" required>
                                 <option value="no">Train a new model and then test</option>
                             </select>
                         </div>
 
                         <div class="input-group">
                             <label for="time_limit">Time limit (minutes):</label>
-                            <input type="number" name="time_limit" id="time_limit" min="0" value="0" style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
+                            <input type="number" name="time_limit" id="time_limit" min="0" value="0"
+                                style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
                         </div>
 
                         <div class="input-group">
                             <label for="custom_name">Benchmark Name (optional):</label>
-                            <input type="text" name="custom_name" id="custom_name" placeholder="Leave empty for default" style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
+                            <input type="text" name="custom_name" id="custom_name" placeholder="Leave empty for default"
+                                style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
                         </div>
                     </div>
 
                     <div class="buttons">
-                        <button name="action" value="start" class="btn-start">Start</button>
-                        <button name="action" value="stop" class="btn-stop">Stop</button>
+                        <button type="button" id="btn-start" class="btn-start">Start training</button>
                     </div>
                 </form>
+
+                <div class="stop-area">
+                    <div class="buttons">
+                        <button type="button" id="btn-stop" class="btn-stop">Stop training</button>
+                    </div>
+                </div>
             </section>
 
             <section class="results-section">
                 <div class="title-bar">
                     <h2>Test Results</h2>
-                    <form method="post">
-                        <div class="buttons">
-                            <button name="action" value="clear-latest" class="btn-clear">
-                                Clear latest
-                            </button>
-                        </div>
-                    </form>
+                    <div class="buttons">
+                        <button type="button" id="btn-clear-latest" class="btn-clear">Clear latest</button>
+                    </div>
                 </div>
 
                 <div class="meta" style="display: flex; justify-content: space-between;">
                     <div>
-                        Model: <span data-key="model">{{ model or 'SVM' }}</span> |
-                        Type: <span data-key="parallelism_type">{{ parallelism_type or 'N/A' }}</span>
+                        Model: <span id="test-model">{{ model or 'SVM' }}</span> |
+                        Type: <span id="test-type">{{ parallelism_type or 'N/A' }}</span> |
+                        Status: <span id="test-status">Idle</span>
                     </div>
                     <div>
                         <label for="view-mode-select">View: </label>
-                        <select id="view-mode-select" onchange="changeViewMode(this.value)" style="padding: 2px; width: auto;">
+                        <select id="view-mode-select" onchange="changeViewMode(this.value)"
+                            style="padding: 2px; width: auto;">
                             <option value="training">Training Data</option>
                             <option value="cpu">CPU Usage</option>
                             <option value="mem">Memory</option>
@@ -197,27 +202,23 @@
             <div id="graph-tiles" class="graph-tiles">
                 <!-- tiles will be injected here by Graphs.js -->
             </div>
-            <div id="graph-tiles" class="graph-tiles">
-                </div>
         </section>
 
         <section class="history-section">
             <div class="title-bar">
                 <h2>Test history</h2>
-                <form method="post">
-                    <div class="buttons">
-                        <button name="action" value="clear-history" class="btn-clear">
-                            Clear history
-                        </button>
-                    </div>
-                </form>
+                <div class="buttons">
+                    <button type="button" id="btn-clear-history" class="btn-clear">
+                        Clear history
+                    </button>
+                </div>
             </div>
 
             <div class="results-display">
                 <div class="two-columns" id="history-tables" style="display: none;">
                     <table id="main-history-table">
                         <thead>
-                            </thead>
+                        </thead>
                         <tbody id="train-body"></tbody>
                     </table>
 
@@ -252,6 +253,9 @@
 
     <!-- Graph.js -->
     <script src="{{ url_for('static', filename='js/Graphs.js') }}"></script>
+
+    <!-- training.js -->
+    <script src="{{ url_for('static', filename='js/training.js') }}"></script>
 
 </body>
 
