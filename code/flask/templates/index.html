@@ -10,7 +10,7 @@
     <header>
         <h1>
             <a href="{{ url_for('index') }}">Main page</a> |
-            <a href="{{ url_for('api_docs') }}">API</a>
+            <a href="{{ url_for('logs') }}">API</a>
         </h1>
     </header>
 
@@ -50,7 +50,7 @@
 
                         <div class="input-group">
                             <label for="saved">Use saved data?</label>
-                            <select name="saved" id="saved-input" required>
+                            <select name="saved" id="saved" required>
                                 <option value="no">Train a new model and then test</option>
                             </select>
                         </div>
@@ -185,17 +185,9 @@
         <!-- Graph section with tiling manager -->
         <section class="graph-section">
             <div class="title-bar">
-                <h2>History Graph</h2>
-                <div class="controls">
-                    <label for="metric-select">Metric:</label>
-                    <select id="metric-select">
-                        <option value="accuracy" selected>Accuracy</option>
-                        <option value="training_time">Training Time</option>
-                        <option value="test_time">Test Time</option>
-                        <option value="throughput">Throughput</option>
-                        <option value="latency_per_batch_ms">Latency</option>
-                        <option value="epochs">Epochs</option>
-                    </select>
+                <h2>History Graphs</h2>
+                <div class="buttons">
+                    <button type="button" id="add-tile" class="btn-start">Add graph</button>
                 </div>
             </div>
 

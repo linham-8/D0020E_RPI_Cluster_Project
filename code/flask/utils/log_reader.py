@@ -101,6 +101,13 @@ def get_archived_runs(filter_type=None):
                 if "tests" not in run_data:
                     run_data["tests"] = [run_data.copy()]
 
+                use_saved_dir = run_folder / "use_saved"
+                if use_saved_dir.exists() and use_saved_dir.is_dir():
+                    for extra_test_file in use_saved_dir.glob("test_log_*.log"):
+                        extra_test_data = read_json(extra_test_file)
+                        if extra_test_data and extra_test_data.get("type") == "test_result":
+                            run_data["tests"].append(extra_test_data)
+
                 runs.append(run_data)
             except:
                 continue

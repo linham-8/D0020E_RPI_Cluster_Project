@@ -29,7 +29,7 @@ function formatVal(val, key) {
 }
 
 async function updateSavedOptions() {
-    const modelType = document.getElementById('parallelism').value;
+    const modelType = document.getElementById('parallelism-input').value;
     const savedSelect = document.getElementById('saved');
 
     savedSelect.innerHTML = '<option value="no">Train a new model and then test</option>';
@@ -58,8 +58,8 @@ async function updateSavedOptions() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const pSelect = document.getElementById('parallelism');
-    const mSelect = document.getElementById('model');
+    const pSelect = document.getElementById('parallelism-input');
+    const mSelect = document.getElementById('model-input');
     if (pSelect) pSelect.addEventListener('change', updateSavedOptions);
     if (mSelect) mSelect.addEventListener('change', updateSavedOptions);
 

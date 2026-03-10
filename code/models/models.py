@@ -77,32 +77,34 @@ class BaseModel(ABC):
         os.makedirs(live_dir, exist_ok=True)
         os.makedirs(latest_dir, exist_ok=True)
 
+        logger_archive_dir = self.archive_dir if self.use_saved == "no" else None
+
         if self.rank == 0:
             self.train_logger = TrainingLogger(
                 os.path.join(latest_dir, "latest.log"),
                 os.path.join(live_dir, "live.log"),
-                self.archive_dir, self.parallelism_type, self.world_size
+                logger_archive_dir, self.parallelism_type, self.world_size
             )
             self.test_logger = TestLogger(
                 os.path.join(latest_dir, "latest.log"),
-                self.archive_dir, self.parallelism_type, self.world_size, self.use_saved
+                logger_archive_dir, self.parallelism_type, self.world_size, self.use_saved
             )
 
         self.system_loggers = [
             CPUlogger(
                 os.path.join(latest_dir, "cpu.log"),
                 os.path.join(live_dir, "cpu_live.log"),
-                self.archive_dir, rank=self.rank
+                logger_archive_dir, rank=self.rank
             ),
             MemoryLogger(
                 os.path.join(latest_dir, "mem.log"),
                 os.path.join(live_dir, "mem_live.log"),
-                self.archive_dir, rank=self.rank
+                logger_archive_dir, rank=self.rank
             ),
             NetworkLogger(
                 os.path.join(latest_dir, "net.log"),
                 os.path.join(live_dir, "net_live.log"),
-                self.archive_dir, rank=self.rank
+                logger_archive_dir, rank=self.rank
             )
         ]
 

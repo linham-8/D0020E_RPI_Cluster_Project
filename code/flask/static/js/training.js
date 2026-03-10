@@ -10,7 +10,7 @@ const trainingForm = document.getElementById('config-form');
 const configInputs = {
     model: document.getElementById('model-input'),
     parallelism: document.getElementById('parallelism-input'),
-    saved: document.getElementById('saved-input'),
+    saved: document.getElementById('saved'),
     timeLimit: document.getElementById('time_limit'),
     customName: document.getElementById('custom_name')
 };
