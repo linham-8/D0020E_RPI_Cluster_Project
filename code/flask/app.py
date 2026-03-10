@@ -29,17 +29,15 @@ def index():
     """Main page route used to start and stop training, and view results and graphs"""
     return render_template("index.html")
 
-@app.route("/api/docs")
-def api_docs():
-    """Browseaable API GET rotues"""
+@app.route("/logs")
+def logs():
+    """Browseable logs"""
     return """
     <h2>
         <a href="/">Back to main page</a>
     </h2>
     <ul>
-        <li><a href="/api/training/status">Status</a></li>
         <li><a href="/api/latest">Latest Log</a></li>
-        <li><a href="/api/live">Live Log</a></li>
         <li><a href="/api/history">History log</a></li>
     </ul>
     """

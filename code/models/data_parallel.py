@@ -119,7 +119,7 @@ class DataParallelModel(BaseModel):
             if self.archive_dir and os.path.isdir(self.archive_dir):
                 model_dir = os.path.join(self.archive_dir, "model")
                 os.makedirs(model_dir, exist_ok=True)
-                torch.save(self.model.state_dict(), os.path.join(model_dir, f"{self.parallelism_type}.pt"))
+                torch.save(self.model.module.state_dict(), os.path.join(model_dir, f"{self.parallelism_type}.pt"))
 
             self.train_logger.log_training_result(
                 training_time=training_time,
