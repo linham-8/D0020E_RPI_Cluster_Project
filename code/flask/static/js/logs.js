@@ -29,7 +29,7 @@ function formatVal(val, key) {
 }
 
 async function updateSavedOptions() {
-    const modelType = document.getElementById('parallelism').value;
+    const modelType = document.getElementById('parallelism-input').value;
     const savedSelect = document.getElementById('saved');
 
     savedSelect.innerHTML = '<option value="no">Train a new model and then test</option>';
@@ -58,10 +58,15 @@ async function updateSavedOptions() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const pSelect = document.getElementById('parallelism');
-    const mSelect = document.getElementById('model');
+    const pSelect = document.getElementById('parallelism-input');
+    const mSelect = document.getElementById('model-input');
     if (pSelect) pSelect.addEventListener('change', updateSavedOptions);
     if (mSelect) mSelect.addEventListener('change', updateSavedOptions);
+
+    const btnClearLatest = document.getElementById('btn-clear-latest');
+    const btnClearHistory = document.getElementById('btn-clear-history');
+    if (btnClearLatest) btnClearLatest.addEventListener('click', () => clearLog('latest'));
+    if (btnClearHistory) btnClearHistory.addEventListener('click', () => clearLog('history'));
 });
 
 function updateTestRow(selectElem, runIndex) {
@@ -220,5 +225,22 @@ async function refreshLogs() {
     } catch (err) { }
 }
 
+async function clearLog(target) {
+    await fetch('/api/logs/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target })
+    });
+
+    if (target === 'latest') {
+        document.getElementById('latest-card').style.display = 'none';
+        document.getElementById('latest-loader').style.display = 'block';
+    } else if (target === 'history') {
+        document.getElementById('history-tables').style.display = 'none';
+        document.getElementById('history-loader').style.display = 'block';
+    }
+
+    refreshLogs();
+}
+
 refreshLogs();
-setInterval(refreshLogs, 5000);

@@ -10,7 +10,7 @@
     <header>
         <h1>
             <a href="{{ url_for('index') }}">Main page</a> |
-            <a href="{{ url_for('api_docs') }}">API</a>
+            <a href="{{ url_for('logs') }}">API</a>
         </h1>
     </header>
 
@@ -27,11 +27,11 @@
                     </div>
                 </div>
 
-                <form id="config-form" method="post">
+                <form id="config-form">
                     <div class="input-grid">
                         <div class="input-group">
                             <label for="model">Model:</label>
-                            <select name="model" id="model" required>
+                            <select name="model" id="model-input" required>
                                 <option value="">-- Choose --</option>
                                 <option value="svm">SVM</option>
                             </select>
@@ -39,7 +39,7 @@
 
                         <div class="input-group">
                             <label for="parallelism">Parallelism type:</label>
-                            <select name="parallelism" id="parallelism" required>
+                            <select name="parallelism" id="parallelism-input" required>
                                 <option value="">-- Choose --</option>
                                 <option value="data_parallel">Data parallelism</option>
                                 <option value="expert_parallel">Expert parallelism</option>
@@ -69,28 +69,30 @@
                     </div>
 
                     <div class="buttons">
-                        <button name="action" value="start" class="btn-start">Start</button>
-                        <button name="action" value="stop" class="btn-stop">Stop</button>
+                        <button type="button" id="btn-start" class="btn-start">Start training</button>
                     </div>
                 </form>
+
+                <div class="stop-area">
+                    <div class="buttons">
+                        <button type="button" id="btn-stop" class="btn-stop">Stop training</button>
+                    </div>
+                </div>
             </section>
 
             <section class="results-section">
                 <div class="title-bar">
                     <h2>Test Results</h2>
-                    <form method="post">
-                        <div class="buttons">
-                            <button name="action" value="clear-latest" class="btn-clear">
-                                Clear latest
-                            </button>
-                        </div>
-                    </form>
+                    <div class="buttons">
+                        <button type="button" id="btn-clear-latest" class="btn-clear">Clear latest</button>
+                    </div>
                 </div>
 
                 <div class="meta" style="display: flex; justify-content: space-between;">
                     <div>
-                        Model: <span data-key="model">{{ model or 'SVM' }}</span> |
-                        Type: <span data-key="parallelism_type">{{ parallelism_type or 'N/A' }}</span>
+                        Model: <span id="test-model">{{ model or 'SVM' }}</span> |
+                        Type: <span id="test-type">{{ parallelism_type or 'N/A' }}</span> |
+                        Status: <span id="test-status">Idle</span>
                     </div>
                     <div>
                         <label for="view-mode-select">View: </label>
@@ -180,7 +182,7 @@
             </section>
         </div>
 
-        <!-- Graph section -->
+        <!-- Graph section with tiling manager -->
         <section class="graph-section">
             <div class="title-bar">
                 <h2>History Graph</h2>
@@ -195,31 +197,25 @@
                         <option value="overall_avg_latency_ms">Network Latency</option>
                         <option value="epochs">Epochs</option>
                     </select>
+                <h2>History Graphs</h2>
+                <div class="buttons">
+                    <button type="button" id="add-tile" class="btn-start">Add graph</button>
                 </div>
             </div>
 
-            <div class="graph-container">
-                <canvas id="history-chart" style="display: none;"></canvas>
-
-                <div id="graph-loader" class="waiting-card">
-                    <div class="spinner"></div>
-                    <p>Waiting for history data...</p>
-                </div>
-            </div>
             <div id="graph-tiles" class="graph-tiles">
+                <!-- tiles will be injected here by Graphs.js -->
             </div>
         </section>
 
         <section class="history-section">
             <div class="title-bar">
                 <h2>Test history</h2>
-                <form method="post">
-                    <div class="buttons">
-                        <button name="action" value="clear-history" class="btn-clear">
-                            Clear history
-                        </button>
-                    </div>
-                </form>
+                <div class="buttons">
+                    <button type="button" id="btn-clear-history" class="btn-clear">
+                        Clear history
+                    </button>
+                </div>
             </div>
 
             <div class="results-display">
@@ -261,6 +257,9 @@
 
     <!-- Graph.js -->
     <script src="{{ url_for('static', filename='js/Graphs.js') }}"></script>
+
+    <!-- training.js -->
+    <script src="{{ url_for('static', filename='js/training.js') }}"></script>
 
 </body>
 

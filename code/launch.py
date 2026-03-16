@@ -70,6 +70,9 @@ def start_cluster(selected_model, saved_choice, custom_name=None, time_limit=0):
         os.makedirs(os.path.join(TEMP_DIR, "live", "nodes"), exist_ok=True)
         os.makedirs(os.path.join(TEMP_DIR, "latest", "nodes"), exist_ok=True)
     else:
+        stop.clean_temp_folders()
+        os.makedirs(os.path.join(TEMP_DIR, "live", "nodes"), exist_ok=True)
+        os.makedirs(os.path.join(TEMP_DIR, "latest", "nodes"), exist_ok=True)
         print(f'Running in test mode (saved="yes"). Result saved in test archive.')
 
     print(f"Cleaning old processes")
@@ -96,7 +99,7 @@ def start_cluster(selected_model, saved_choice, custom_name=None, time_limit=0):
         print(f"Could not start head node: {e}")
         sys.exit(1)
 
-    for rank, node in enumerate(COMPUTE_NODES, start=1):
+    for rank, node in enumerate(Config.COMPUTE_NODES, start=1):
         print(f"Starting {rank} on {node}.")
         try:
             remote_cmd = f"PYTHONPATH={BASE_DIR} {PYTHON_EXEC} -u {runner_script} --model {selected_model} --rank {rank} --use_saved {use_saved_flag} --archive_dir {archive_dir} --time_limit {time_limit}"
@@ -127,7 +130,7 @@ def start_cluster(selected_model, saved_choice, custom_name=None, time_limit=0):
 
                     if data.get("type") == "test_result":
                         ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                        logs_dir = os.path.join(archive_dir, "latest")
+                        logs_dir = os.path.join(archive_dir, "use_saved")
                         os.makedirs(logs_dir, exist_ok=True)
                         dest = os.path.join(logs_dir, f"test_log_{ts}.log")
                         shutil.copy(latest_log_path, dest)

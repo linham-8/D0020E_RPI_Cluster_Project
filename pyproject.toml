@@ -12,6 +12,10 @@ dependencies = [
     "flask (>=3.1.2,<4.0.0)"
 ]
 
+[tool.poetry]
+packages = [
+    { include = "src" }
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
