@@ -25,14 +25,15 @@ def read_latest_log():
         "training_time": "N/A",
         "test_time": "N/A",
         "throughput": "N/A",
-        "latency_per_batch_ms": "N/A",
+        "iteration_time_ms": "N/A",
         "inference_throughput": "N/A",
-        "inference_latency_ms": "N/A",
+        "inference_iteration_time_ms": "N/A",
+        "overall_avg_latency_ms": "N/A",
         "world_size": "N/A",
         "epochs": "N/A",
         "timestamp": "N/A",
         "type": "N/A",
-    }
+        }
     try:
         latest_dir = Config.TEMP_DIR / "latest"
         latest_log_path = latest_dir / "latest.log"
@@ -49,9 +50,10 @@ def read_latest_log():
             "training_time": data.get("training_time", "N/A"),
             "test_time": data.get("test_time", "N/A"),
             "throughput": data.get("throughput", "N/A"),
-            "latency_per_batch_ms": data.get("latency_per_batch_ms", "N/A"),
+            "iteration_time_ms": data.get("iteration_time_ms", "N/A"),
             "inference_throughput": data.get("inference_throughput", "N/A"),
-            "inference_latency_ms": data.get("inference_latency_ms", "N/A"),
+            "inference_iteration_time_ms": data.get("inference_iteration_time_ms", "N/A"),
+            "overall_avg_latency_ms": data.get("overall_avg_latency_ms", "N/A"),
             "world_size": data.get("world_size", "N/A"),
             "epochs": data.get("epochs", "N/A"),
             "timestamp": data.get("timestamp", "N/A"),

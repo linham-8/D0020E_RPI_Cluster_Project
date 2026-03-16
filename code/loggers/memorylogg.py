@@ -21,15 +21,12 @@ class MemoryLogger(Logger):
         self.total_mem_used += memory_stats.used
         self.measure_count += 1
 
-        avg_percent = self.total_mem_percent / self.measure_count
-        avg_used = self.total_mem_used / self.measure_count
-
         formatted_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
         live_log = {
             "timestamp": formatted_time,
             "memory_used_percent": memory_stats.percent,
-            "memory_used": memory_stats.used
+            "memory_used": round(memory_stats.used / (1024**3), 2)
         }
         self.updateLiveLogFile(live_log)
 
@@ -40,7 +37,7 @@ class MemoryLogger(Logger):
         overall_log = {
             "timestamp": formatted_time,
             "overall_avg_memory_percent": round(avg_percent, 2),
-            "overall_avg_memory_used": int(avg_used)
+            "overall_avg_memory_used": round(avg_used / (1024**3), 2)
         }
         self.updateLogFile(overall_log, mode="w")
 
@@ -57,6 +54,6 @@ class MemoryLogger(Logger):
             global_log = {
                 "timestamp": formatted_time,
                 "overall_avg_memory_percent": round(global_percent, 2),
-                "overall_avg_memory_used": int(global_used)
+                "overall_avg_memory_used": round(global_used / (1024**3), 2)
             }
             self.updateGeneralLogFile(global_log, mode="w")

@@ -125,16 +125,16 @@
                             <span class="value" data-key="throughput"></span>
                         </div>
                         <div class="metric training-metric">
-                            <span class="title">Train Latency:</span>
-                            <span class="value" data-key="latency_per_batch_ms"></span>ms
+                            <span class="title">Train Iteration Time:</span>
+                            <span class="value" data-key="iteration_time_ms"></span>ms
                         </div>
                         <div class="metric training-metric">
                             <span class="title">Inf. Throughput:</span>
                             <span class="value" data-key="inference_throughput"></span>
                         </div>
                         <div class="metric training-metric">
-                            <span class="title">Inf. Latency:</span>
-                            <span class="value" data-key="inference_latency_ms"></span>ms
+                            <span class="title">Inf. Iteration Time:</span>
+                            <span class="value" data-key="inference_iteration_time_ms"></span>ms
                         </div>
                         <div class="metric training-metric">
                             <span class="title">World size:</span>
@@ -154,19 +154,19 @@
                         </div>
                         <div class="metric mem-metric" style="display: none;">
                             <span class="title">Memory Used:</span>
-                            <span class="value" data-key="overall_avg_memory_used"></span> B
+                            <span class="value" data-key="overall_avg_memory_used"></span> GB
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Avg Network:</span>
-                            <span class="value" data-key="overall_avg_bytes_per_second"></span> B/s
+                            <span class="value" data-key="overall_avg_bytes_per_second"></span> MB/s
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Net Sent:</span>
-                            <span class="value" data-key="total_bytes_sent_during_run"></span> B
+                            <span class="value" data-key="total_bytes_sent_during_run"></span> MB
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Net Recv:</span>
-                            <span class="value" data-key="total_bytes_recv_during_run"></span> B
+                            <span class="value" data-key="total_bytes_recv_during_run"></span> MB
                         </div>
                         <div class="metric">
                             <span class="title">Timestamp:</span>
@@ -185,6 +185,18 @@
         <!-- Graph section with tiling manager -->
         <section class="graph-section">
             <div class="title-bar">
+                <h2>History Graph</h2>
+                <div class="controls">
+                    <label for="metric-select">Metric:</label>
+                    <select id="metric-select">
+                        <option value="accuracy" selected>Accuracy</option>
+                        <option value="training_time">Training Time</option>
+                        <option value="test_time">Test Time</option>
+                        <option value="throughput">Throughput</option>
+                        <option value="iteration_time_ms">Iteration Time</option>
+                        <option value="overall_avg_latency_ms">Network Latency</option>
+                        <option value="epochs">Epochs</option>
+                    </select>
                 <h2>History Graphs</h2>
                 <div class="buttons">
                     <button type="button" id="add-tile" class="btn-start">Add graph</button>
@@ -221,7 +233,7 @@
                                 <th>Accuracy</th>
                                 <th>Test Time</th>
                                 <th>Inf. Throughput</th>
-                                <th>Inf. Latency</th>
+                                <th>Inf. Iteration Time</th>
                             </tr>
                         </thead>
                         <tbody id="test-body"></tbody>
