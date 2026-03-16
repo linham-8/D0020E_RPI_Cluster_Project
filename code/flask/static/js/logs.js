@@ -73,7 +73,7 @@ function updateTestRow(selectElem, runIndex) {
     const inf_tp = test.inference_throughput;
     document.getElementById(`test-tp-${runIndex}`).textContent = formatVal(inf_tp);
 
-    const lat = test.inference_latency_ms;
+    const lat = test.inference_iteration_time_ms;
     document.getElementById(`test-lat-${runIndex}`).textContent = lat !== 'N/A' ? `${formatVal(lat)}ms` : lat;
 }
 
@@ -138,7 +138,7 @@ async function refreshLogs() {
 
             if (currentViewMode === 'training') {
                 theadHtml = `
-                    <tr><th>Timestamp</th><th>Parallelism</th><th>World Size</th><th>Epochs</th><th>Train Time</th><th>Throughput</th><th>Latency</th></tr>`;
+                    <tr><th>Timestamp</th><th>Parallelism</th><th>World Size</th><th>Epochs</th><th>Train Time</th><th>Throughput</th><th>Iteration Time</th></tr>`;
                 tbodyHtml = allRuns.map((run) => `
                     <tr>
                         <td>${run.timestamp}</td>
@@ -147,7 +147,7 @@ async function refreshLogs() {
                         <td>${run.epochs}</td>
                         <td>${formatVal(run.training_time)}s</td>
                         <td>${formatVal(run.throughput)}</td>
-                        <td>${run.latency_per_batch_ms !== 'N/A' ? formatVal(run.latency_per_batch_ms) + 'ms' : 'N/A'}</td>
+                        <td>${run.iteration_time_ms !== 'N/A' ? formatVal(run.iteration_time_ms) + 'ms' : 'N/A'}</td>
                     </tr>`).join('');
             } else if (currentViewMode === 'cpu') {
                 theadHtml = `<tr><th>Timestamp</th><th>Parallelism</th><th>Avg CPU Usage</th></tr>`;
@@ -158,7 +158,7 @@ async function refreshLogs() {
                         <td>${run.overall_avg_cpu_usage !== undefined ? formatVal(run.overall_avg_cpu_usage) + '%' : 'N/A'}</td>
                     </tr>`).join('');
             } else if (currentViewMode === 'mem') {
-                theadHtml = `<tr><th>Timestamp</th><th>Parallelism</th><th>Avg Memory %</th><th>Memory Used (B)</th></tr>`;
+                theadHtml = `<tr><th>Timestamp</th><th>Parallelism</th><th>Avg Memory %</th><th>Memory Used (GB)</th></tr>`;
                 tbodyHtml = allRuns.map((run) => `
                     <tr>
                         <td>${run.timestamp}</td>
@@ -167,7 +167,7 @@ async function refreshLogs() {
                         <td>${run.overall_avg_memory_used !== undefined ? run.overall_avg_memory_used : 'N/A'}</td>
                     </tr>`).join('');
             } else if (currentViewMode === 'net') {
-                theadHtml = `<tr><th>Timestamp</th><th>Parallelism</th><th>Avg Network (B/s)</th><th>Sent (B)</th><th>Recv (B)</th></tr>`;
+                theadHtml = `<tr><th>Timestamp</th><th>Parallelism</th><th>Avg Network (MB/s)</th><th>Sent (MB)</th><th>Recv (MB)</th><th>Latency (ms)</th></tr>`;
                 tbodyHtml = allRuns.map((run) => `
                     <tr>
                         <td>${run.timestamp}</td>
@@ -175,6 +175,7 @@ async function refreshLogs() {
                         <td>${run.overall_avg_bytes_per_second !== undefined ? run.overall_avg_bytes_per_second : 'N/A'}</td>
                         <td>${run.total_bytes_sent_during_run !== undefined ? run.total_bytes_sent_during_run : 'N/A'}</td>
                         <td>${run.total_bytes_recv_during_run !== undefined ? run.total_bytes_recv_during_run : 'N/A'}</td>
+                        <td>${run.overall_avg_latency_ms !== undefined ? formatVal(run.overall_avg_latency_ms) + 'ms' : 'N/A'}</td>
                     </tr>`).join('');
             }
 
@@ -192,7 +193,7 @@ async function refreshLogs() {
                     }).join('');
 
                     const firstTest = run.tests[0];
-                    const lat = firstTest.inference_latency_ms;
+                    const lat = firstTest.inference_iteration_time_ms;
                     const inf_tp = firstTest.inference_throughput;
 
                     return `
@@ -212,6 +213,8 @@ async function refreshLogs() {
 
             lastTestCount = currentTestCount;
             lastCompletedTestsCount = currentCompletedTests;
+
+            updateSavedOptions();
         }
 
     } catch (err) { }

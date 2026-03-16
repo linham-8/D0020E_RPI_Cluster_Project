@@ -120,8 +120,8 @@ class ModelParallelModel(BaseModel):
             if self.use_saved != "yes":
                 self.train_logger.log_training_result(
                     training_time=training_time,
-                    total_images=total_batches * batch_size * epochs,
-                    epochs=epochs,
+                    total_images=current_image,
+                    epochs=epoch,
                     batch_size=batch_size
                 )
 

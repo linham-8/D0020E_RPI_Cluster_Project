@@ -57,12 +57,14 @@
 
                         <div class="input-group">
                             <label for="time_limit">Time limit (minutes):</label>
-                            <input type="number" name="time_limit" id="time_limit" min="0" value="0" style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
+                            <input type="number" name="time_limit" id="time_limit" min="0" value="0"
+                                style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
                         </div>
 
                         <div class="input-group">
                             <label for="custom_name">Benchmark Name (optional):</label>
-                            <input type="text" name="custom_name" id="custom_name" placeholder="Leave empty for default" style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
+                            <input type="text" name="custom_name" id="custom_name" placeholder="Leave empty for default"
+                                style="width: 100%; padding: 12px; border: 1px solid white; border-radius: 4px; background: #1a1d24; color: white;">
                         </div>
                     </div>
 
@@ -92,7 +94,8 @@
                     </div>
                     <div>
                         <label for="view-mode-select">View: </label>
-                        <select id="view-mode-select" onchange="changeViewMode(this.value)" style="padding: 2px; width: auto;">
+                        <select id="view-mode-select" onchange="changeViewMode(this.value)"
+                            style="padding: 2px; width: auto;">
                             <option value="training">Training Data</option>
                             <option value="cpu">CPU Usage</option>
                             <option value="mem">Memory</option>
@@ -120,16 +123,16 @@
                             <span class="value" data-key="throughput"></span>
                         </div>
                         <div class="metric training-metric">
-                            <span class="title">Train Latency:</span>
-                            <span class="value" data-key="latency_per_batch_ms"></span>ms
+                            <span class="title">Train Iteration Time:</span>
+                            <span class="value" data-key="iteration_time_ms"></span>ms
                         </div>
                         <div class="metric training-metric">
                             <span class="title">Inf. Throughput:</span>
                             <span class="value" data-key="inference_throughput"></span>
                         </div>
                         <div class="metric training-metric">
-                            <span class="title">Inf. Latency:</span>
-                            <span class="value" data-key="inference_latency_ms"></span>ms
+                            <span class="title">Inf. Iteration Time:</span>
+                            <span class="value" data-key="inference_iteration_time_ms"></span>ms
                         </div>
                         <div class="metric training-metric">
                             <span class="title">World size:</span>
@@ -149,19 +152,19 @@
                         </div>
                         <div class="metric mem-metric" style="display: none;">
                             <span class="title">Memory Used:</span>
-                            <span class="value" data-key="overall_avg_memory_used"></span> B
+                            <span class="value" data-key="overall_avg_memory_used"></span> GB
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Avg Network:</span>
-                            <span class="value" data-key="overall_avg_bytes_per_second"></span> B/s
+                            <span class="value" data-key="overall_avg_bytes_per_second"></span> MB/s
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Net Sent:</span>
-                            <span class="value" data-key="total_bytes_sent_during_run"></span> B
+                            <span class="value" data-key="total_bytes_sent_during_run"></span> MB
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Net Recv:</span>
-                            <span class="value" data-key="total_bytes_recv_during_run"></span> B
+                            <span class="value" data-key="total_bytes_recv_during_run"></span> MB
                         </div>
                         <div class="metric">
                             <span class="title">Timestamp:</span>
@@ -188,7 +191,8 @@
                         <option value="training_time">Training Time</option>
                         <option value="test_time">Test Time</option>
                         <option value="throughput">Throughput</option>
-                        <option value="latency_per_batch_ms">Latency</option>
+                        <option value="iteration_time_ms">Iteration Time</option>
+                        <option value="overall_avg_latency_ms">Network Latency</option>
                         <option value="epochs">Epochs</option>
                     </select>
                 </div>
@@ -203,7 +207,7 @@
                 </div>
             </div>
             <div id="graph-tiles" class="graph-tiles">
-                </div>
+            </div>
         </section>
 
         <section class="history-section">
@@ -222,7 +226,7 @@
                 <div class="two-columns" id="history-tables" style="display: none;">
                     <table id="main-history-table">
                         <thead>
-                            </thead>
+                        </thead>
                         <tbody id="train-body"></tbody>
                     </table>
 
@@ -233,7 +237,7 @@
                                 <th>Accuracy</th>
                                 <th>Test Time</th>
                                 <th>Inf. Throughput</th>
-                                <th>Inf. Latency</th>
+                                <th>Inf. Iteration Time</th>
                             </tr>
                         </thead>
                         <tbody id="test-body"></tbody>

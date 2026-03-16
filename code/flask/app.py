@@ -12,8 +12,8 @@ import stop
 app = Flask(__name__)
 
 #Slår av loggin, kommentera ut bara
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
+#log = logging.getLogger('werkzeug')
+#log.setLevel(logging.ERROR)
 
 active_tasks = {}
 has_data = False
@@ -56,7 +56,7 @@ def index():
             if custom_name:
                 cmd.extend(["--name", custom_name])
 
-            proc = subprocess.Popen(cmd)
+            proc = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
 
             active_tasks["training"] = proc.pid
             print(f"Started training with PID {proc.pid}")
@@ -127,4 +127,4 @@ def api_archives(model_type):
     return jsonify(runs)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

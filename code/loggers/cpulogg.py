@@ -11,20 +11,21 @@ class CPUlogger(Logger):
         self.interval = interval
         self.total_cpu = 0.0
         self.measure_count = 0
+        self.process = psutil.Process()
+        self.process.cpu_percent(interval=None)
         "Remove files if already exists"
 
     def collect(self) -> None:
-        current_cpu = psutil.cpu_percent(self.interval)
+        current_cpu = self.process.cpu_percent(interval=None) / psutil.cpu_count()
 
         self.total_cpu += current_cpu
         self.measure_count += 1
-        avg_cpu = self.total_cpu / self.measure_count
 
         formatted_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
         live_log = {
             "timestamp": formatted_time,
-            "cpu-usage": psutil.cpu_percent(self.interval),
+            "cpu-usage": current_cpu,
             #"count": psutil.cpu_count()
             "cpu_stats": psutil.cpu_stats()._asdict()
             #ADD relevant

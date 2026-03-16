@@ -43,14 +43,14 @@ class TrainingLogger(Logger):
         run_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         total_batches = total_images / batch_size
         throughput = total_images / training_time
-        avg_latency = (training_time / total_batches) * 1000
+        avg_iteration_time = (training_time / total_batches) * 1000
 
         train_log = {
             "type": "training_result",
             "parallelism_type": self.parallelism_type,
             "training_time": round(training_time, 2),
             "throughput": round(throughput, 2),
-            "latency_per_batch_ms": round(avg_latency, 2),
+            "iteration_time_ms": round(avg_iteration_time, 2),
             "world_size": self.world_size,
             "epochs": epochs,
             "timestamp": run_timestamp,
@@ -81,7 +81,7 @@ class TestLogger(Logger):
     def log_test_result(self, test_time: float, accuracy: float, total_test_images: int, batch_size: int):
         run_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         inference_throughput = total_test_images / test_time
-        inference_latency = (test_time / (total_test_images / batch_size)) * 1000
+        inference_iteration_time = (test_time / (total_test_images / batch_size)) * 1000
 
         test_log = {
             "type": "test_result",
@@ -89,7 +89,7 @@ class TestLogger(Logger):
             "accuracy": float(accuracy),
             "test_time": round(test_time, 2),
             "inference_throughput": round(inference_throughput, 2),
-            "inference_latency_ms": round(inference_latency, 2),
+            "inference_iteration_time_ms": round(inference_iteration_time, 2),
             "world_size": self.world_size,
             "timestamp": run_timestamp,
         }

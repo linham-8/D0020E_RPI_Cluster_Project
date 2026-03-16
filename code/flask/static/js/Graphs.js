@@ -111,7 +111,8 @@
                 'throughput': 'Throughput',
                 'training_time': 'Training time (s)',
                 'test_time': 'Test time (s)',
-                'latency_per_batch_ms': 'Latency per batch (ms)',
+                'iteration_time_ms': 'Iteration time (ms)',
+                'overall_avg_latency_ms': 'Network Latency (ms)',
                 'epochs': 'Epochs'
             };
             const isPercent = selectedMetric === 'accuracy';
