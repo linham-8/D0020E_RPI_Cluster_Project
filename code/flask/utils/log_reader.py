@@ -31,6 +31,7 @@ def read_latest_log():
         "overall_avg_latency_ms": "N/A",
         "world_size": "N/A",
         "epochs": "N/A",
+        "batch_size": "N/A",
         "timestamp": "N/A",
         "type": "N/A",
         }
@@ -56,6 +57,7 @@ def read_latest_log():
             "overall_avg_latency_ms": data.get("overall_avg_latency_ms", "N/A"),
             "world_size": data.get("world_size", "N/A"),
             "epochs": data.get("epochs", "N/A"),
+            "batch_size": data.get("batch_size", "N/A"),
             "timestamp": data.get("timestamp", "N/A"),
             "has_data": True,
             "log_file": str(latest_log_path.name),

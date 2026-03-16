@@ -22,21 +22,37 @@
     // log('Graphs.js loaded');
     const labelMap = {
         'accuracy': 'Accuracy (%)',
-        'throughput': 'Throughput',
+        'throughput': 'Train Throughput (img/s)',
         'training_time': 'Training Time (s)',
+        'iteration_time_ms': 'Train Iteration Time (ms)',
         'test_time': 'Test Time (s)',
-        'latency_per_batch': 'Latency per batch (ms)',
-        'epochs': 'Epochs'
+        'inference_throughput': 'Inf. Throughput (img/s)',
+        'inference_iteration_time_ms': 'Inf. Iteration Time (ms)',
+        'overall_avg_cpu_usage': 'Avg CPU Usage (%)',
+        'overall_avg_memory_percent': 'Avg Memory (%)',
+        'overall_avg_memory_used': 'Avg Memory Used (GB)',
+        'overall_avg_mb_per_second': 'Avg Network (MB/s)',
+        'overall_avg_latency_ms': 'Network Latency (ms)',
+        'epochs': 'Epochs',
+        'batch_size': 'Batch Size'
     };
 
     // handlers map metric key to extractor from history entry
     const metricHandlers = {
-        accuracy: h => (h.tests && h.tests[0] ? h.tests[0].accuracy : null),
-        test_time: h => (h.tests && h.tests[0] ? h.tests[0].test_time : null),
-        latency_per_batch: h => h.latency_per_batch_ms || (h.tests && h.tests[0] ? h.tests[0].inference_latency_ms : null),
+        accuracy: h => h.accuracy !== undefined ? h.accuracy : (h.tests && h.tests[0] ? h.tests[0].accuracy : null),
+        test_time: h => h.test_time !== undefined ? h.test_time : (h.tests && h.tests[0] ? h.tests[0].test_time : null),
+        inference_throughput: h => h.inference_throughput !== undefined ? h.inference_throughput : (h.tests && h.tests[0] ? h.tests[0].inference_throughput : null),
+        inference_iteration_time_ms: h => h.inference_iteration_time_ms !== undefined ? h.inference_iteration_time_ms : (h.tests && h.tests[0] ? h.tests[0].inference_iteration_time_ms : null),
         throughput: h => h.throughput,
         training_time: h => h.training_time,
-        epochs: h => h.epochs
+        iteration_time_ms: h => h.iteration_time_ms,
+        overall_avg_cpu_usage: h => h.overall_avg_cpu_usage,
+        overall_avg_memory_percent: h => h.overall_avg_memory_percent,
+        overall_avg_memory_used: h => h.overall_avg_memory_used,
+        overall_avg_mb_per_second: h => h.overall_avg_mb_per_second,
+        overall_avg_latency_ms: h => h.overall_avg_latency_ms,
+        epochs: h => h.epochs,
+        batch_size: h => h.batch_size
     };
 
     function formatTimestamp(ts) {
@@ -105,7 +121,7 @@
                 const v = parseFloat(raw);
                 return Number.isFinite(v) ? v : null;
             });
-            const isPercent = metric === 'accuracy';
+            const isPercent = metric === 'accuracy' || metric.includes('percent') || metric.includes('usage');
             const displayLabel = labelMap[metric] || metric;
 
             const rect = tile.canvas.parentElement.getBoundingClientRect();

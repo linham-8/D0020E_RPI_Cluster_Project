@@ -113,6 +113,18 @@
                             <span class="value" data-key="accuracy"></span> %
                         </div>
                         <div class="metric training-metric">
+                            <span class="title">Epochs:</span>
+                            <span class="value" data-key="epochs"></span>
+                        </div>
+                        <div class="metric training-metric">
+                            <span class="title">Batch size:</span>
+                            <span class="value" data-key="batch_size"></span>
+                        </div>
+                        <div class="metric training-metric">
+                            <span class="title">World size:</span>
+                            <span class="value" data-key="world_size"></span>
+                        </div>
+                        <div class="metric training-metric">
                             <span class="title">Training time:</span>
                             <span class="value" data-key="training_time"></span>s
                         </div>
@@ -136,14 +148,6 @@
                             <span class="title">Inf. Iteration Time:</span>
                             <span class="value" data-key="inference_iteration_time_ms"></span>ms
                         </div>
-                        <div class="metric training-metric">
-                            <span class="title">World size:</span>
-                            <span class="value" data-key="world_size"></span>
-                        </div>
-                        <div class="metric training-metric">
-                            <span class="title">Epochs:</span>
-                            <span class="value" data-key="epochs"></span>
-                        </div>
                         <div class="metric cpu-metric" style="display: none;">
                             <span class="title">Avg CPU Usage:</span>
                             <span class="value" data-key="overall_avg_cpu_usage"></span> %
@@ -158,22 +162,25 @@
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Avg Network:</span>
-                            <span class="value" data-key="overall_avg_bytes_per_second"></span> MB/s
+                            <span class="value" data-key="overall_avg_mb_per_second"></span> MB/s
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Net Sent:</span>
-                            <span class="value" data-key="total_bytes_sent_during_run"></span> MB
+                            <span class="value" data-key="total_mb_sent_during_run"></span> MB
                         </div>
                         <div class="metric net-metric" style="display: none;">
                             <span class="title">Net Recv:</span>
-                            <span class="value" data-key="total_bytes_recv_during_run"></span> MB
+                            <span class="value" data-key="total_mb_recv_during_run"></span> MB
+                        </div>
+                        <div class="metric net-metric" style="display: none;">
+                            <span class="title">Network Latency:</span>
+                            <span class="value" data-key="overall_avg_latency_ms"></span> ms
                         </div>
                         <div class="metric">
                             <span class="title">Timestamp:</span>
                             <span class="value" data-key="timestamp"></span>
                         </div>
                     </div>
-
                     <div id="latest-loader" class="waiting-card">
                         <div class="spinner"></div>
                         <p>Waiting for log file...</p>
@@ -185,18 +192,6 @@
         <!-- Graph section with tiling manager -->
         <section class="graph-section">
             <div class="title-bar">
-                <h2>History Graph</h2>
-                <div class="controls">
-                    <label for="metric-select">Metric:</label>
-                    <select id="metric-select">
-                        <option value="accuracy" selected>Accuracy</option>
-                        <option value="training_time">Training Time</option>
-                        <option value="test_time">Test Time</option>
-                        <option value="throughput">Throughput</option>
-                        <option value="iteration_time_ms">Iteration Time</option>
-                        <option value="overall_avg_latency_ms">Network Latency</option>
-                        <option value="epochs">Epochs</option>
-                    </select>
                 <h2>History Graphs</h2>
                 <div class="buttons">
                     <button type="button" id="add-tile" class="btn-start">Add graph</button>

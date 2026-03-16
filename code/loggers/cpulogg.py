@@ -5,9 +5,8 @@ import torch
 import torch.distributed as dist
 
 class CPUlogger(Logger):
-
-    def __init__(self, filepath: str, filepathLiveLog: str, archive_dir: str = None, interval=0, rank: int = 0):
-        super().__init__(filepath, filepathLiveLog, archive_dir, rank=rank, node_specific=True)
+    def __init__(self, filepath: str = None, filepathLiveLog: str = None, archive_dir: str = None, interval=0, rank: int = 0):
+        super().__init__(filepath=filepath, filepathLiveLog=filepathLiveLog, archive_dir=archive_dir, rank=rank, node_specific=True)
         self.interval = interval
         self.total_cpu = 0.0
         self.measure_count = 0
@@ -27,7 +26,7 @@ class CPUlogger(Logger):
             "timestamp": formatted_time,
             "cpu-usage": current_cpu,
             #"count": psutil.cpu_count()
-            "cpu_stats": psutil.cpu_stats()._asdict()
+            #"cpu_stats": psutil.cpu_stats()._asdict()
             #ADD relevant
         }
         self.updateLiveLogFile(live_log)

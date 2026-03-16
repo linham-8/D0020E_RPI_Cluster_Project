@@ -90,7 +90,7 @@ def logs():
 @app.route("/api/training/start", methods=["POST"])
 def api_start():
     data = request.get_json() or {}
-    
+
     if is_process_running():
         return jsonify({"status": "error", "message": "Training already in progress"}), 400
 
@@ -104,7 +104,7 @@ def api_start():
     try:
         cmd = [
             "python", launch_script,
-            "--model", parallelism, 
+            "--model", parallelism,
             "--saved", saved,
             "--time_limit", str(time_limit_sec)
         ]
@@ -113,14 +113,14 @@ def api_start():
             cmd.extend(["--name", custom_name])
 
         proc = subprocess.Popen(cmd, cwd=Config.ROOT_DIR)
-        
+
         active_tasks["training"] = {
             "proc": proc,
             "pid": proc.pid,
             "parallelism": parallelism,
             "model": model
         }
-        
+
         return jsonify({
             "status": "success",
             "message": f"Started {parallelism} training (PID: {proc.pid})"
@@ -133,17 +133,17 @@ def api_start():
 def api_stop():
     """API route used to stop training"""
     task_info = active_tasks.get("training")
-    
+
     if not task_info:
         return jsonify({"status": "error", "message": "No active task found"}), 404
 
     try:
         stop.stop_session()
-            
+
         active_tasks.pop("training", None)
-        
+
         return jsonify({"status": "success", "message": "Training stopped"}), 200
-    
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -166,7 +166,7 @@ def api_clear_logs():
     """API route that triggers the deletion logic in stop.py"""
     data = request.get_json() or {}
     target = data.get("target")
-    
+
     try:
         if target == "latest":
             stop.clean_temp_folders()
@@ -174,7 +174,7 @@ def api_clear_logs():
             stop.clean_history()
         else:
             return jsonify({"status": "error", "message": "Invalid target"}), 400
-            
+
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -204,12 +204,12 @@ def api_archives(model_type):
 def is_process_running():
     """Checks the stored 'proc' object to see if training is still alive."""
     task = active_tasks.get("training")
-    
+
     if not task or "proc" not in task:
         return False
 
     proc = task["proc"]
-    
+
     if proc.poll() is None:
         return True
 

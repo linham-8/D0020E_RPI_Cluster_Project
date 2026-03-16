@@ -4,8 +4,8 @@ import time
 from loggers.logger import Logger
 
 class TrainingLogger(Logger):
-    def __init__(self, filepath: str, filepathLiveLog: str, archive_dir: str = None, parallelism_type: str = "unknown", world_size: int = 1):
-        super().__init__(filepath, filepathLiveLog, archive_dir)
+    def __init__(self, filepath: str = None, filepathLiveLog: str = None, archive_dir: str = None, parallelism_type: str = "unknown", world_size: int = 1):
+        super().__init__(filepath=filepath, filepathLiveLog=filepathLiveLog, archive_dir=archive_dir)
         self.parallelism_type = parallelism_type
         self.world_size = world_size
 
@@ -53,12 +53,13 @@ class TrainingLogger(Logger):
             "iteration_time_ms": round(avg_iteration_time, 2),
             "world_size": self.world_size,
             "epochs": epochs,
+            "batch_size": batch_size,
             "timestamp": run_timestamp,
         }
 
         self.updateLogFile(train_log, mode="w")
 
-        if self.archive_dir and os.path.isdir(self.archive_dir):
+        if self.archive_dir:
             logs_dir = os.path.join(self.archive_dir, "logs")
             os.makedirs(logs_dir, exist_ok=True)
             try:
@@ -69,8 +70,8 @@ class TrainingLogger(Logger):
 
 
 class TestLogger(Logger):
-    def __init__(self, filepath: str, archive_dir: str = None, parallelism_type: str = "unknown", world_size: int = 1, use_saved: str = "no"):
-        super().__init__(filepath, None, archive_dir)
+    def __init__(self, filepath: str = None, archive_dir: str = None, parallelism_type: str = "unknown", world_size: int = 1, use_saved: str = "no"):
+        super().__init__(filepath=filepath, archive_dir=archive_dir)
         self.parallelism_type = parallelism_type
         self.world_size = world_size
         self.use_saved = use_saved
@@ -94,17 +95,15 @@ class TestLogger(Logger):
             "timestamp": run_timestamp,
         }
 
-        merged_log = test_log
-        if os.path.exists(self.filepath):
+        merged_log = {}
+        if self.filepath:
             try:
                 with open(self.filepath, "r") as f:
-                    try:
-                        merged_log = json.load(f)
-                        merged_log.update(test_log)
-                    except json.JSONDecodeError:
-                        pass
-            except OSError:
+                    merged_log = json.load(f)
+            except Exception:
                 pass
+
+        merged_log.update(test_log)
 
         self.updateLogFile(merged_log, mode="w")
 
