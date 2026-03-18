@@ -8,8 +8,8 @@ from config import Config
 
 
 class NetworkLogger(Logger):
-    def __init__(self, filepath: str, filepathLiveLog: str, archive_dir: str = None, rank: int = 0):
-        super().__init__(filepath, filepathLiveLog, archive_dir, rank=rank, node_specific=True)
+    def __init__(self, filepath: str = None, filepathLiveLog: str = None, archive_dir: str = None, rank: int = 0):
+        super().__init__(filepath=filepath, filepathLiveLog=filepathLiveLog, archive_dir=archive_dir, rank=rank, node_specific=True)
         net_io = psutil.net_io_counters()
         self.prev_bytes_recv = max(0, net_io.bytes_recv)
         self.start_bytes_sent = net_io.bytes_sent
@@ -46,16 +46,16 @@ class NetworkLogger(Logger):
 
         live_log = {
             "timestamp": formatted_time,
-            "bytes_per_second":round(bytes_per_second / (1024**2), 2),
-            "bytes_sent":round(net_stats.bytes_sent / (1024**2), 2),     #number of bytes sent #wraparound Risk??
-            "bytes_recv":round(net_stats.bytes_recv / (1024**2), 2),     #number of bytes received
-            "packets_sent": net_stats.packets_sent, #number of packets sent
-            "packets_recv": net_stats.packets_recv, #number of packets received
-            "errin": net_stats.errin,               #total number of errors while receiving
-            "errout": net_stats.errout,             #total number of errors while sending
-            "dropin": net_stats.dropin,             #total number of incoming packets which were dropped
-            "dropout": net_stats.dropout,            #total number of outgoing packets which were dropped(always 0 on macOS and BSD)
-            "latency_ms": current_latency
+            "mb_per_second":round(bytes_per_second / (1024**2), 2),
+            "mb_sent":round(net_stats.bytes_sent / (1024**2), 2),     #number of bytes sent #wraparound Risk??
+            "mb_recv":round(net_stats.bytes_recv / (1024**2), 2),     #number of bytes received
+            #"packets_sent": net_stats.packets_sent, #number of packets sent
+            #"packets_recv": net_stats.packets_recv, #number of packets received
+            #"errin": net_stats.errin,               #total number of errors while receiving
+            #"errout": net_stats.errout,             #total number of errors while sending
+            #"dropin": net_stats.dropin,             #total number of incoming packets which were dropped
+            #"dropout": net_stats.dropout,            #total number of outgoing packets which were dropped(always 0 on macOS and BSD)
+            "latency_ms": round(current_latency, 3)
         }
         self.updateLiveLogFile(live_log)
 
@@ -69,9 +69,9 @@ class NetworkLogger(Logger):
         formatted_time = time.strftime("%Y-%m-%d %H:%M:%S")
         overall_log = {
             "timestamp": formatted_time,
-            "overall_avg_bytes_per_second": round(avg_bytes_per_sec / (1024**2), 2),
-            "total_bytes_sent_during_run": round(total_sent / (1024**2), 2),
-            "total_bytes_recv_during_run": round(total_recv / (1024**2), 2),
+            "overall_avg_mb_per_second": round(avg_bytes_per_sec / (1024**2), 2),
+            "total_mb_sent_during_run": round(total_sent / (1024**2), 2),
+            "total_mb_recv_during_run": round(total_recv / (1024**2), 2),
             "overall_avg_latency_ms": round(avg_latency, 2)
         }
         self.updateLogFile(overall_log, mode="w")
@@ -92,9 +92,9 @@ class NetworkLogger(Logger):
         if self.rank == 0:
             global_log = {
                 "timestamp": formatted_time,
-                "overall_avg_bytes_per_second": round(global_bps / (1024**2), 2),
-                "total_bytes_sent_during_run": round(global_sent / (1024**2), 2),
-                "total_bytes_recv_during_run": round(global_recv / (1024**2), 2),
+                "overall_avg_mb_per_second": round(global_bps / (1024**2), 2),
+                "total_mb_sent_during_run": round(global_sent / (1024**2), 2),
+                "total_mb_recv_during_run": round(global_recv / (1024**2), 2),
                 "overall_avg_latency_ms": round(global_lat, 2)
             }
             self.updateGeneralLogFile(global_log, mode="w")

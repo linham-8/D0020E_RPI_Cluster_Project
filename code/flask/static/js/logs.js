@@ -143,13 +143,23 @@ async function refreshLogs() {
 
             if (currentViewMode === 'training') {
                 theadHtml = `
-                    <tr><th>Timestamp</th><th>Parallelism</th><th>World Size</th><th>Epochs</th><th>Train Time</th><th>Throughput</th><th>Iteration Time</th></tr>`;
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Parallelism</th>
+                        <th>World Size</th>
+                        <th>Epochs</th>
+                        <th>Batch Size</th>
+                        <th>Train Time</th>
+                        <th>Throughput</th>
+                        <th>Iteration Time</th>
+                    </tr>`;
                 tbodyHtml = allRuns.map((run) => `
                     <tr>
                         <td>${run.timestamp}</td>
                         <td>${formatVal(run.parallelism_type, 'parallelism_type')}</td>
                         <td>${run.world_size || 'N/A'}</td>
-                        <td>${run.epochs}</td>
+                        <td>${run.epochs !== undefined ? run.epochs : 'N/A'}</td>
+                        <td>${run.batch_size !== undefined ? run.batch_size : 'N/A'}</td>
                         <td>${formatVal(run.training_time)}s</td>
                         <td>${formatVal(run.throughput)}</td>
                         <td>${run.iteration_time_ms !== 'N/A' ? formatVal(run.iteration_time_ms) + 'ms' : 'N/A'}</td>
@@ -172,14 +182,22 @@ async function refreshLogs() {
                         <td>${run.overall_avg_memory_used !== undefined ? run.overall_avg_memory_used : 'N/A'}</td>
                     </tr>`).join('');
             } else if (currentViewMode === 'net') {
-                theadHtml = `<tr><th>Timestamp</th><th>Parallelism</th><th>Avg Network (MB/s)</th><th>Sent (MB)</th><th>Recv (MB)</th><th>Latency (ms)</th></tr>`;
+                theadHtml = `
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Parallelism</th>
+                        <th>Avg Network (MB/s)</th>
+                        <th>Sent (MB)</th>
+                        <th>Recv (MB)</th>
+                        <th>Network Latency (ms)</th>
+                    </tr>`;
                 tbodyHtml = allRuns.map((run) => `
                     <tr>
                         <td>${run.timestamp}</td>
                         <td>${formatVal(run.parallelism_type, 'parallelism_type')}</td>
-                        <td>${run.overall_avg_bytes_per_second !== undefined ? run.overall_avg_bytes_per_second : 'N/A'}</td>
-                        <td>${run.total_bytes_sent_during_run !== undefined ? run.total_bytes_sent_during_run : 'N/A'}</td>
-                        <td>${run.total_bytes_recv_during_run !== undefined ? run.total_bytes_recv_during_run : 'N/A'}</td>
+                        <td>${run.overall_avg_mb_per_second !== undefined ? run.overall_avg_mb_per_second : 'N/A'}</td>
+                        <td>${run.total_mb_sent_during_run !== undefined ? run.total_mb_sent_during_run : 'N/A'}</td>
+                        <td>${run.total_mb_recv_during_run !== undefined ? run.total_mb_recv_during_run : 'N/A'}</td>
                         <td>${run.overall_avg_latency_ms !== undefined ? formatVal(run.overall_avg_latency_ms) + 'ms' : 'N/A'}</td>
                     </tr>`).join('');
             }

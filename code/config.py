@@ -36,7 +36,7 @@ class Config():
         "model_parallel",
     ]
     EPOCHS = 5
-    BATCH_SIZE = 512
+    BATCH_SIZE = 64
     LEARNING_RATE = 0.01
     HIDDEN_DIM = 128
     DATA_ROOT = Path("/scratch/datasets")

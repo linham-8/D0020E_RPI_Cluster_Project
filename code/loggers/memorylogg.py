@@ -6,9 +6,8 @@ import torch.distributed as dist
 
 
 class MemoryLogger(Logger):
-
-    def __init__(self, filepath: str, filepathLiveLog: str, archive_dir: str = None, rank: int = 0):
-        super().__init__(filepath, filepathLiveLog, archive_dir, rank=rank, node_specific=True)
+    def __init__(self, filepath: str = None, filepathLiveLog: str = None, archive_dir: str = None, rank: int = 0):
+        super().__init__(filepath=filepath, filepathLiveLog=filepathLiveLog, archive_dir=archive_dir, rank=rank, node_specific=True)
         self.total_memory = psutil.virtual_memory().total
         self.total_mem_percent = 0.0
         self.total_mem_used = 0
