@@ -25,53 +25,9 @@ launch_script = os.path.join(CODE_DIR, "launch.py")
 
 
 @app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET", "POST"])
 def index():
     """Main page route used to start and stop training, and view results and graphs"""
-    if request.method == "POST":
-        action = request.form["action"]
-        if action == "start":
-            model = request.form["model"]
-            parallelism = request.form["parallelism"]
-            saved = request.form["saved"]
-
-            time_limit_min = request.form.get("time_limit", "0")
-            time_limit_sec = int(time_limit_min) * 60 if time_limit_min.isdigit() else 0
-
-            custom_name = request.form.get("custom_name", "").strip()
-
-            print(
-                f"Starting training: Model={model}, Parallelism={parallelism}, Saved={saved}, TimeLimit={time_limit_sec}s, Name={custom_name}"
-            )
-
-            cmd = [
-                "python", launch_script,
-                "--model", parallelism,
-                "--saved", saved,
-                "--time_limit", str(time_limit_sec)
-            ]
-
-            if custom_name:
-                cmd.extend(["--name", custom_name])
-
-            proc = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
-
-            active_tasks["training"] = proc.pid
-            print(f"Started training with PID {proc.pid}")
-            return redirect(url_for("index"))
-
-        elif action == "stop":
-            stop.stop_session()
-            active_tasks.pop("training", None)
-            return redirect(url_for("index"))
-
-        elif action == "clear-latest":
-            stop.clean_temp_folders()
-            return redirect(url_for("index"))
-
-        elif action == "clear-history":
-            stop.clean_history()
-            return redirect(url_for("index"))
-
     return render_template("index.html")
 
 @app.route("/logs")
