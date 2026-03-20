@@ -1,1 +1,1 @@
-from .log_reader import read_latest_log, read_history_log
+from .log_reader import read_latest_log
