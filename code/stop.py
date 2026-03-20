@@ -48,7 +48,7 @@ def clean_temp_folders():
 
 def clean_history():
     """Rensar historikloggen."""
-    safe_remove(str(Config.HISTORY_LOG))
+    shutil.rmtree(str(Config.ARCHIVE_DIR), ignore_errors=True)
 
 def stop_cluster(selected_model):
     """Stoppar en specifik modell."""

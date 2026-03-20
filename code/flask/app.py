@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, url_for, render_template, jsonify
-from utils.log_reader import read_latest_log, read_history_log, get_archived_runs
+from utils.log_reader import read_latest_log, get_archived_runs
 import subprocess
 import os
 import signal

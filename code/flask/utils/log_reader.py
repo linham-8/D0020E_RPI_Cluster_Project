@@ -118,38 +118,3 @@ def get_archived_runs(filter_type=None):
 
     runs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return runs
-
-
-def read_history_log():
-    merged_data = {}
-    try:
-        history_log_path = Config.HISTORY_LOG
-        if not history_log_path.exists():
-            return []
-
-        with open(history_log_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    entry = json.loads(line)
-                    ts = entry.get("timestamp")
-
-                    if ts:
-                        if ts not in merged_data:
-                            merged_data[ts] = entry
-                        else:
-                            merged_data[ts].update(entry)
-
-                        if "tests" not in merged_data[ts]:
-                            merged_data[ts]["tests"] = [merged_data[ts].copy()]
-
-                except json.JSONDecodeError:
-                    continue
-
-        return list(merged_data.values())[::-1]
-
-    except Exception as e:
-        print(f"Error reading history log: {e}")
-        return []

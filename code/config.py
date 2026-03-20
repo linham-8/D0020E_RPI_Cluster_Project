@@ -20,8 +20,6 @@ class Config():
     # Files
     LAUNCH_SCRIPT = SRC_DIR / "launch.py"
     LATEST_LOG = TEMP_DIR / "latest.log"
-    HISTORY_LOG = TEMP_DIR / "history.log"
-
     # Nodes
     COMPUTE_NODES = ["pi1", "pi2", "pi3", "pi4"]
 
